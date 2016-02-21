@@ -1,0 +1,294 @@
+﻿main:
+	WhileY:
+		PUSHW EndWhileY
+
+
+
+
+		PUSHW CurrY
+
+
+
+
+		LW
+		PUSHW 480
+
+
+
+
+		LESS
+		NOT
+		JIF		
+		WhileX:
+			PUSHW EndWhileX
+
+
+
+
+			PUSHW CurrX
+
+
+
+
+			LW
+			PUSHW 640
+
+
+
+
+			LESS
+			NOT
+			JIF	
+			BEGINARGS
+			PUSHW CurrX
+
+
+
+
+			LW
+			PUSHW CurrY
+
+
+
+
+			LW
+			PUSHW Else
+
+
+
+
+			PUSHW DrawWhite
+
+
+
+
+			LW
+			NOT
+			JIF
+			If:
+				PUSHW WriteWhite
+
+
+
+
+				CALL
+				PUSHW EndIf
+
+
+
+
+				JMP
+			Else:
+				PUSHW WriteBlack
+
+
+
+
+				CALL
+			EndIf:
+			PUSHW CurrX
+
+
+
+
+			PUSHW CurrX
+
+
+
+
+			LW
+			PUSHW 1
+
+
+
+
+			ADD
+			SW
+		EndWhileX:
+		PUSHW CurrX
+
+
+
+
+		PUSHW 0
+
+
+
+
+		SW
+		PUSHW CurrY
+
+
+
+
+		PUSHW CurrY
+
+
+
+
+		LW
+		PUSHW 1
+
+
+
+
+		ADD
+		SW
+	EndWhileY:
+	PUSHW CurrY
+
+
+
+
+	PUSHW 0
+
+
+
+
+	SW
+	PUSHW DrawWhite
+
+
+
+
+	PUSHW DrawWhite
+
+
+
+
+	LW
+	NOT
+	SW
+	PUSHW main
+
+
+
+
+	JMP
+WriteWhite:
+	BEGINARGS
+	PUSHW WriteScreen
+
+
+
+
+	CALL
+	RET
+WriteBlack:
+	BEGINARGS
+	PUSHW WriteScreen
+
+
+
+
+	CALL
+	RET
+WriteScreen:
+	PUSHW CurrY
+
+
+
+
+	LW// load y
+	PUSHW 640
+
+
+
+
+	MUL// y * 640
+	PUSHW CurrX
+
+
+
+
+	LW// load x
+	ADD// y * 640 + x
+	PUSHW SCREEN
+
+
+
+	ADD// SCREEN + y * 640 + x
+	PUSHW -1
+
+
+
+
+	SB// [SCREEN + y * 640 + x] = white
+	PUSHW CurrY
+
+
+
+
+	LW// load y
+	PUSHW 640
+
+
+
+
+	MUL// y * 640
+	PUSHW CurrX
+
+
+
+
+	LW// load x
+	ADD// y * 640 + x
+	PUSHW SCREEN
+
+
+
+	ADD// y * 640 + x + SCEERn
+	PUSHW 1
+
+
+
+	ADD// SCREEN + y * 640 + x + 1
+	PUSHW -1
+
+
+
+
+	SB// [SCREEN + y * 640 + x + 1] = white
+	PUSHW CurrY
+
+
+
+
+	LW// load y
+	PUSHW 640
+
+
+
+
+	MUL// y * 640
+	PUSHW CurrX
+
+
+
+
+	LW// load x
+	ADD// y * 640 + x
+	PUSHW SCREEN
+
+
+
+	ADD// SCREEN + y * 640 + x
+	PUSHW 2
+
+
+
+	ADD// SCREEN + y * 640 + x + 2
+	PUSHW -1
+
+
+
+
+	SB// [SCREEN + y * 640 + x + 2] = white
+	RET
+//Global vars
+CurrX : WORD 0
+CurrY : WORD 0
+DrawWhite : WORD true
+TestString0: "A long string to test that strings work and also that it shows up in memory"
+SCREEN : WORD 66688
+TestString: "A long string to test that strings work and also that it shows up in memory"

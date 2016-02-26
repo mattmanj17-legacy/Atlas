@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.VM", "Atlas.VM\Atlas.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.Assembler", "Atlas.Assembler\Atlas.Assembler.csproj", "{F62FAA05-9789-4745-B6C0-DA2512F6E4FF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.AtlasCC", "Atlas.AtlasCC\Atlas.AtlasCC.csproj", "{4D1CE776-0610-4704-8F93-A4BD0994649F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{F62FAA05-9789-4745-B6C0-DA2512F6E4FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F62FAA05-9789-4745-B6C0-DA2512F6E4FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F62FAA05-9789-4745-B6C0-DA2512F6E4FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D1CE776-0610-4704-8F93-A4BD0994649F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D1CE776-0610-4704-8F93-A4BD0994649F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D1CE776-0610-4704-8F93-A4BD0994649F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D1CE776-0610-4704-8F93-A4BD0994649F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

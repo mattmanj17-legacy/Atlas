@@ -16,7 +16,8 @@ namespace Atlas.Architecture
         BasePointer,
         NextInstructionAddress,
         Literal,
-        ArgumentB
+        ArgumentB,
+        StackPointer
     }
 
     //list of valid instructions: 35 OpCodes
@@ -47,6 +48,7 @@ namespace Atlas.Architecture
         JMP,
         JIF,
         PUSHBP,
+        PUSHSP,
         PUSHB,
         PUSHH,
         PUSHW,
@@ -148,6 +150,7 @@ namespace Atlas.Architecture
                 //+4
                 case OpCode.PUSHW:
                 case OpCode.PUSHBP:
+                case OpCode.PUSHSP:
                     //pop none off stack, push word
                     newSP = StackPointer + MemSizeToInt(MemSize.WORD);
                     break;
@@ -252,6 +255,7 @@ namespace Atlas.Architecture
                 case OpCode.JMP:
                 case OpCode.JIF:
                 case OpCode.PUSHBP:
+                case OpCode.PUSHSP:
                 case OpCode.PUSHB:
                 case OpCode.PUSHH:
                 case OpCode.PUSHW:
@@ -300,6 +304,7 @@ namespace Atlas.Architecture
                 case OpCode.SH:
                 case OpCode.SW:
                 case OpCode.PUSHBP:
+                case OpCode.PUSHSP:
                 case OpCode.POPB:
                 case OpCode.POPH:
                 case OpCode.POPW:
@@ -323,7 +328,7 @@ namespace Atlas.Architecture
                     newPC = stackArgB;
                     break;
                 case OpCode.JIF:
-                    if (stackArgB != 0) { newPC = stackArgA; }
+                    if (stackArgA != 0) { newPC = stackArgB; }
                     else { newPC = ProgramCounter + 1; }
                     break;
                 case OpCode.RETV:
@@ -376,6 +381,9 @@ namespace Atlas.Architecture
                 case OpCode.PUSHBP:
                 case OpCode.BEGINARGS:
                     writeSource = AtlasWriteSource.BasePointer;
+                    break;
+                case OpCode.PUSHSP:
+                    writeSource = AtlasWriteSource.StackPointer;
                     break;
                 case OpCode.PUSHB:
                 case OpCode.PUSHH:
@@ -432,6 +440,7 @@ namespace Atlas.Architecture
                 case OpCode.LW:
                 case OpCode.SW:
                 case OpCode.PUSHBP:
+                case OpCode.PUSHSP:
                 case OpCode.PUSHW:
                 case OpCode.BEGINARGS:
                 case OpCode.CALL:
@@ -472,6 +481,7 @@ namespace Atlas.Architecture
                     break;
                 //push
                 case OpCode.PUSHBP:
+                case OpCode.PUSHSP:
                 case OpCode.PUSHB:
                 case OpCode.PUSHH:
                 case OpCode.PUSHW:
@@ -521,6 +531,9 @@ namespace Atlas.Architecture
                     break;
                 case AtlasWriteSource.BasePointer:
                     writeVal = BasePointer;
+                    break;
+                case AtlasWriteSource.StackPointer:
+                    writeVal = StackPointer;
                     break;
                 case AtlasWriteSource.NextInstructionAddress:
                     writeVal = ProgramCounter + 1;

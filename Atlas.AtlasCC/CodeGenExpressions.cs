@@ -12,312 +12,575 @@ namespace Atlas.AtlasCC
         public void DisregardLastExpression()
         {
             Expressions.Pop();
-            EmitLine("pop");
+            EmitLine("POPW");
         }
-        
+
         public void EmitAssinmentOperation()
         {
+            //pop arguments to store
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
 
-            if(lhs.valueCatagory != ValueCatagory.LValue)
+            if (rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert right hand expression to rvalue (EmitAssinmentOperation)");
+            }
+
+            if (lhs.valueCatagory != ValueCatagory.LValue)
             {
                 CodeGenError("cannot assign to non lvalue");
             }
 
-            //todo: change lb, lh etc so that they push the value they set memory to onto the stack
-            EmitLine("=");
+            if (!lhs.Type.CompatableWith(rhs.Type))
+            {
+                if (rhs.Type.CanImplicentlyConvertTo(lhs.Type))
+                {
+                    EmitCastExpresion(lhs.Type);
+                }
+                else
+                {
+                    CodeGenError("cannot assign expresion of type " + rhs.Type.ToString() + " to expression of type " + lhs.Type.ToString());
+                }
+            }
 
-            Expressions.Push(new .....);
+            EmitLine("SW");
+
+            //load the result of the assignment onto stack
+            ExpressionInfo adrress = Expressions.Pop();
+            EmitLine("LW");
+
+            Expressions.Push(new ExpressionInfo(rhs.Type, ValueCatagory.RValue, false));
         }
 
         public void EmitCompoundAssinmentMultiply()
         {
-            //fix tree walk so we dont have to use inline functions
-            //emit compound assignment as inline functions
-            CodeGenError("not implimented");
+            EmitMultiplyOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentDivide()
         {
-            CodeGenError("not implimented");
+            EmitDivideOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentMod()
         {
-            CodeGenError("not implimented");
+            EmitModOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentAdd()
         {
-            CodeGenError("not implimented");
+            EmitAddOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentSub()
         {
-            CodeGenError("not implimented");
+            EmitSubOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentShiftLeft()
         {
-            CodeGenError("not implimented");
+            EmitLeftShiftOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentShiftRight()
         {
-            CodeGenError("not implimented");
+            EmitRightShiftOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentAnd()
         {
-            CodeGenError("not implimented");
+            EmitAndOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentXor()
         {
-            CodeGenError("not implimented");
+            EmitXorOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentOr()
         {
-            CodeGenError("not implimented");
+            EmitOrOperation();
+            EmitAssinmentOperation();
         }
 
         public void EmitCoditionalExpresionHeader()
         {
-            EmitLine("not");
+            MakeCurrentExpressionRValue();
+            
+            EmitLine("NOT");
             PushLabel();
-            Emit("push ");
+            Emit("PUSHW ");
             EmitLine(GetCurrentLabel());
-            EmitLine("jif");
+            EmitLine("JIF");
+
+            Expressions.Pop();
         }
 
         public void EmitCoditionalExpresionBody()
         {
+            MakeCurrentExpressionRValue();
+            
             string oldLabel = GetCurrentLabel();
             PopLabel();
 
             PushLabel();
-            Emit("push ");
+            Emit("PUSHW ");
             EmitLine(GetCurrentLabel());
-            EmitLine("jmp");
+            EmitLine("JMP");
             EmitLine(oldLabel + ":");
-            throw new NotImplementedException();
+
+            Expressions.Pop();
         }
 
         public void EmitCoditionalExpresionFooter()
         {
+            MakeCurrentExpressionRValue();
+
             EmitLine(GetCurrentLabel() + ":");
             PopLabel();
+
+            Expressions.Pop();
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, false));
         }
 
         public void EmitLogicalOrBody()
         {
+            MakeCurrentExpressionRValue();
+            
             PushLabel();
-            Emit("push ");
+            Emit("PUSHW ");
             EmitLine(GetCurrentLabel());
-            EmitLine("jif");
-            EmitLine("pop");
+            EmitLine("JIF");
+            EmitLine("POPW");
+
+            Expressions.Pop();
         }
 
         public void EmitLogicalOrFooter()
         {
+            MakeCurrentExpressionRValue();
+            
             EmitLine(GetCurrentLabel() + ":");
             PopLabel();
+
+            Expressions.Pop();
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, false));
         }
 
         public void EmitLogicalAndBody()
         {
-            EmitLine("not");
+            MakeCurrentExpressionRValue();
+
+            EmitLine("NOT");
             PushLabel();
-            Emit("push ");
+            Emit("PUSHW ");
             EmitLine(GetCurrentLabel());
-            EmitLine("jif");
-            EmitLine("pop");
+            EmitLine("JIF");
+            EmitLine("POPW");
+
+            Expressions.Pop();
         }
 
         public void EmitLogicalAndFooter()
         {
+            MakeCurrentExpressionRValue();
+            
             EmitLine(GetCurrentLabel() + ":");
             PopLabel();
+
+            Expressions.Pop();
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, false));
         }
 
         public void EmitOrOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("|");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitOrOperation");
+            }
+
+            EmitLine("OR");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitXorOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("^");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitXorOperation");
+            }
+
+            EmitLine("XOR");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitAndOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("&");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitAndOperation");
+            }
+
+            EmitLine("AND");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitAreEqualOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("==");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitAreEqualOperation");
+            }
+
+            //todo implimet with basic operations
+            EmitLine("TEMP==");
+            CodeGenError("EmitAreEqualOperation not implimented");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitNotEqualOperation()
         {
-            ExpressionInfo rhs = Expressions.Pop();
-            ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("!=");
+            EmitAreEqualOperation();
+            EmitLogicalNotOperation();
         }
 
         public void EmitLessThanOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("<"); 
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitLessThanOperation");
+            }
+
+            EmitLine("LESS");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitGreaterThanOperation()
         {
-            //emit other compare ops as inline functions
-            CodeGenError("not implimented");
+            //assume args are pased in corect order
+            EmitLessThanOperation();
+            CodeGenError("EmitGreaterThanOperation not implimented");
         }
 
         public void EmitLessThanOrEqualOperation()
         {
-            CodeGenError("not implimented");
+            EmitLine("PUSHW 1");
+            EmitLine("ADD");
+            EmitLessThanOperation();
         }
 
         public void EmitGreaterThanOrEqualOperation()
         {
-            CodeGenError("not implimented");
+            //assume args are pased in corect order
+            EmitLessThanOrEqualOperation();
+            CodeGenError("EmitGreaterThanOrEqualOperation not implimented");
         }
 
         public void EmitLeftShiftOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("<<");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitLeftShiftOperation");
+            }
+
+            if (rhs.Type.IsNaturalNumber)
+            {
+                CodeGenError("right hand argument to shift must be natural number");
+            }
+
+            EmitLine("SLL");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitRightShiftOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine(">>");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitRightShiftOperation");
+            }
+
+            if (rhs.Type.IsNaturalNumber)
+            {
+                CodeGenError("right hand argument to shift must be natural number");
+            }
+
+            EmitLine("SRL");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant)); Expressions.Push(new ExpressionInfo(lhs.Type, ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitAddOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("+");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitAddOperation");
+            }
+
+            if (lhs.Type.IsNumber && rhs.Type.IsNumber)
+            {
+                EmitLine("ADD");
+            }
+            else if (lhs.Type.IsPointer && rhs.Type.IsNumber)
+            {
+                EmitSizeOfType(lhs.Type.TypePointedTo);
+                EmitLine("MUL");
+                EmitLine("ADD");
+            }
+            else
+            {
+                CodeGenError("invalid operands to Add");
+            }
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitSubOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("-");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitSubOperation");
+            }
+
+            if (lhs.Type.IsNumber && rhs.Type.IsNumber)
+            {
+                EmitLine("SUB");
+            }
+            else if (lhs.Type.IsPointer && rhs.Type.IsNumber)
+            {
+                EmitSizeOfType(lhs.Type.TypePointedTo);
+                EmitLine("MUL");
+                EmitLine("SUB");
+            }
+            else
+            {
+                CodeGenError("invalid operands to sub");
+            }
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitMultiplyOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
             ExpressionInfo lhs = Expressions.Pop();
-            EmitLine("*");
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitMultiplyOperation");
+            }
+
+            if (lhs.Type.IsNaturalNumber && rhs.Type.IsNaturalNumber)
+            {
+                EmitLine("MUL");
+            }
+            else
+            {
+                CodeGenError("invalid operands to mul");
+            }
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitDivideOperation()
         {
-            //handled by inline function probably
-            CodeGenError("not implimented");
+            ExpressionInfo rhs = Expressions.Pop();
+            ExpressionInfo lhs = Expressions.Pop();
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitDivideOperation");
+            }
+
+            if (lhs.Type.IsNaturalNumber && rhs.Type.IsNaturalNumber)
+            {
+                EmitLine("DIV");
+                CodeGenError("DIV not implimented");
+            }
+            else
+            {
+                CodeGenError("invalid operands to div");
+            }
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitModOperation()
         {
-            //handled by inline function probably
-            CodeGenError("not implimented");
+            ExpressionInfo rhs = Expressions.Pop();
+            ExpressionInfo lhs = Expressions.Pop();
+
+            if (lhs.valueCatagory != ValueCatagory.RValue || rhs.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: failed to convert arithmetic operand to rvalue EmitModOperation");
+            }
+
+            if (lhs.Type.IsNaturalNumber && rhs.Type.IsNaturalNumber)
+            {
+                EmitLine("MOD");
+                CodeGenError("DIV not implimented");
+            }
+            else
+            {
+                CodeGenError("invalid operands to mod");
+            }
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, lhs.Constant && rhs.Constant));
         }
 
         public void EmitCastExpresion(CTypeInfo type)
         {
             //handled by inline function probably
             ExpressionInfo rhs = Expressions.Pop();
-            EmitLine("Cast("+type.ToString()+")");
+
+            if (rhs.Type.CompatableWith(type))
+            {
+                Expressions.Push(rhs);
+                return;
+            }
+
+            EmitLine("TEMPCast(" + type.ToString() + ")");
+            CodeGenError("EmitCastExpresion not implimented");
+
+            Expressions.Push(new ExpressionInfo(type, ValueCatagory.RValue, rhs.Constant));
         }
 
         public void EmitSizeOfType(CTypeInfo type)
         {
-            EmitLine("push " + type.SizeOf);
+            EmitLine("PUSHW " + type.SizeOf);
+            CodeGenError("not imp EmitSizeOfType");
         }
 
         public void EmitSizeOfValue()
         {
             ExpressionInfo rhs = Expressions.Pop();
-            EmitLine("push " + rhs.Type.SizeOf);
+            EmitLine("PUSHW " + rhs.Type.SizeOf);
+            CodeGenError("not imp EmitSizeOfValue");
         }
-
-        //above this, all expressions emit rvalues
-        
-        //below this, emit lvalus whenever possible
 
         public void EmitPreDecrement()
         {
-            //handled by inline function probably
-            CodeGenError("not implimented");
+            CodeGenError("not implimented EmitPreDecrement");
         }
 
         public void EmitPreIncrement()
         {
-            //handled by inline function probably
-            CodeGenError("not implimented");
+            CodeGenError("not implimented EmitPreIncrement");
         }
 
         public void EmitAddressOfOperation()
         {
             ExpressionInfo rhs = Expressions.Pop();
-            //change expression from lvalue to rvalue
+
+            if (rhs.valueCatagory != ValueCatagory.LValue)
+            {
+                CodeGenError("cannot take the addres of a non lvalue");
+            }
+
+            Expressions.Push(new ExpressionInfo(rhs.Type.GetPointerType(), ValueCatagory.RValue, false));
         }
 
         public void EmitDereferenceOperation()
         {
+            MakeCurrentExpressionRValue();
+            
             ExpressionInfo rhs = Expressions.Pop();
-            EmitLine("DeRef");
-            //make sure to return an lvalue (say the value on top of stack is a pointer)
+
+            if (!rhs.Type.IsPointer)
+            {
+                CodeGenError("cannot dereference non pointer type");
+            }
+
+            EmitLine("LW");
+
+            Expressions.Push(new ExpressionInfo(rhs.Type.TypePointedTo, ValueCatagory.LValue, false));
         }
 
         public void EmitPositiveOperation()
         {
-            //cast to signed
-            CodeGenError("not implimented");
+            MakeCurrentExpressionRValue();
+
+            ExpressionInfo rhs = Expressions.Peek();
+
+            CTypeInfo promotedType = rhs.Type.ToSigned();
+
+            if (promotedType == null)
+            {
+                CodeGenError("unary + cannot be applyed to expression of type " + rhs.Type.ToString());
+            }
+
+            EmitCastExpresion(promotedType);
         }
 
         public void EmitNegativeOperation()
         {
-            ExpressionInfo rhs = Expressions.Pop();
-            //cast to signed (later)
-            //invert sign
-            EmitLine("Neg");
+            EmitPositiveOperation();
+            EmitLine("NEG");
         }
 
         public void EmitBitwiseNotOperation()
         {
+            MakeCurrentExpressionRValue();
+            
             ExpressionInfo rhs = Expressions.Pop();
-            EmitLine("~");
+
+            EmitLine("NOT");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, rhs.Constant));
         }
 
         public void EmitLogicalNotOperation()
         {
+            MakeCurrentExpressionRValue();
             ExpressionInfo rhs = Expressions.Pop();
-            EmitLine("!");
+            EmitLine("TEMPLOGICALNOT");
+            CodeGenError("EmitLogicalNotOperation not implimented");
+
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, rhs.Constant));
         }
 
         //TODO right now this is tighly bound to the atlas calling convention
@@ -341,37 +604,98 @@ namespace Atlas.AtlasCC
 
         public void EmitPostDecrement()
         {
-            //handled by inline function probably
             CodeGenError("not implimented");
         }
 
         public void EmitPostIncrement()
         {
-            //handled by inline function probably
             CodeGenError("not implimented");
         }
 
         public void EmitMemberAccess(LabelInfo label)
         {
-            throw new NotImplementedException();
+            ExpressionInfo obj = Expressions.Pop();
+
+            if (obj.valueCatagory != ValueCatagory.LValue)
+            {
+                CodeGenError("cannot get member from rvalue expression");
+            }
+
+            if (obj.Type.HasMembers)
+            {
+                if (obj.Type.HasMember(label))
+                {
+                    EmitLine("PUSHW " + obj.Type.GetMemberOffset(label));
+                    EmitLine("ADD");
+
+                    Expressions.Push(new ExpressionInfo(obj.Type.GetMemberType(label), ValueCatagory.LValue, false));
+                }
+                else
+                {
+                    CodeGenError("type " + obj.Type.ToString() + " has no member named \"" + label.ToString() + "\"");
+                }
+            }
+            else
+            {
+                CodeGenError("type " + obj.Type.ToString() + " has no members");
+            }
         }
 
         public void EmitPointerAccess(LabelInfo label)
         {
-            throw new NotImplementedException();
+            EmitDereferenceOperation();
+            EmitMemberAccess(label);
         }
 
         public void EmitFunctionCall(int numPassedArguments)
         {
-            //pop the function addres off the stack
-            //check the types of the arguments
+            MakeCurrentExpressionRValue();
 
-            throw new NotImplementedException();
+            ExpressionInfo func = Expressions.Pop();
+
+            //check that they are rvalues????
+            List<ExpressionInfo> args = new List<ExpressionInfo>();
+
+            for (int i = 0; i < numPassedArguments; i++)
+            {
+                args.Add(Expressions.Pop());
+            }
+
+            if (!func.Type.IsFunction || !func.Type.CheckFuncArguments(args))
+            {
+                CodeGenError("invalid arguments passed to function, or expresion not of function type");
+            }
+
+            EmitLine("CALL");
+
+            Expressions.Push(new ExpressionInfo(func.Type.ReturnType, ValueCatagory.RValue, false));
         }
 
         public void EmitArrayAccess()
         {
-            throw new NotImplementedException();
+            ExpressionInfo index = Expressions.Pop();
+            ExpressionInfo array = Expressions.Pop();
+
+            if (index.valueCatagory != ValueCatagory.RValue)
+            {
+                CodeGenError("internal error: forgot to chang to rvalue EmitArrayAccess");
+            }
+
+            if (array.valueCatagory != ValueCatagory.LValue)
+            {
+                CodeGenError("cannot use array subscript operator on non lvalue expresion");
+            }
+
+            if (!array.Type.IsPointer)
+            {
+                CodeGenError("cannot use array subscript operator on non pointer type");
+            }
+
+            EmitSizeOfType(array.Type.TypePointedTo);
+            EmitLine("MUL");
+            EmitLine("ADD");
+
+            Expressions.Push(new ExpressionInfo(array.Type.TypePointedTo, ValueCatagory.LValue, false));
         }
 
         public void EmitStringLiteral(IEnumerable<string> literals)
@@ -381,12 +705,29 @@ namespace Atlas.AtlasCC
 
         public void EmitIdentifierReference(LabelInfo label)
         {
-            throw new NotImplementedException();
+            if (label.IsMember)
+            {
+                CodeGenError("symbol \"" + label.ToString() + "\" does not exist in this scope");
+            }
+
+            if (label.IsLocal)
+            {
+                EmitLine("PUSHBP");
+                EmitLine("PUSHW " + label.Offset);
+                EmitLine("ADD");
+            }
+            else
+            {
+                EmitLine("PUSHW " + label.ToString());
+            }
+
+            Expressions.Push(new ExpressionInfo(label.Type, ValueCatagory.LValue, false));
         }
 
         public void EmitConstant(string literal)
         {
-            throw new NotImplementedException();
+            EmitLine("PUSHW " + literal);
+            Expressions.Push(new ExpressionInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), ValueCatagory.RValue, true));
         }
 
         public ExpressionInfo CurrentExpresion
@@ -395,6 +736,27 @@ namespace Atlas.AtlasCC
             {
                 return Expressions.Peek();
             }
+        }
+
+        public void MakeCurrentExpressionRValue()
+        {
+            ExpressionInfo top = Expressions.Pop();
+
+            if (top.valueCatagory == ValueCatagory.RValue)
+                return;
+
+            EmitLine("LW");
+
+            Expressions.Push(new ExpressionInfo(top.Type, ValueCatagory.RValue, false));
+        }
+
+        public void EmitCloneExpression()
+        {
+            EmitLine("PUSHSP");
+            EmitLine("PUSHW 4");
+            EmitLine("SUB");
+            EmitLine("LW");
+            Expressions.Push(Expressions.Peek());
         }
 
         private void PushLabel()
@@ -412,7 +774,7 @@ namespace Atlas.AtlasCC
         {
             labels.Pop();
         }
-        
+
         private int num_gen_labels = 0;
 
         private Stack<int> labels = new Stack<int>();

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Atlas.AtlasCC
 {
     partial class AtlasCCompiler : CBaseListener, IAntlrErrorListener<IToken>
-    {
+    {   
         CTypeInfo CTypeFromName(string name)
         {
             throw new NotImplementedException();
@@ -16,12 +16,26 @@ namespace Atlas.AtlasCC
 
         private LabelInfo LabelInfoFromName(string name, CTypeInfo type)
         {
-            throw new NotImplementedException();
+            return type.GetMemberByName(name);
         }
 
         private LabelInfo LabelInfoFromName(string name)
         {
-            throw new NotImplementedException();
+            if(variables.ContainsKey(name))
+            {
+                return variables[name];
+            }
+            else
+            {
+                return null;
+            }
         }
+
+        private void CreatVariable(string name, LabelInfo label)
+        {
+            variables[name] = label;
+        }
+
+        private Dictionary<string, LabelInfo> variables = new Dictionary<string,LabelInfo>();
     }
 }

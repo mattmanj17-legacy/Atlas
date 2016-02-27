@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using Atlas.Architecture;
 using Atlas.Assembler;
+using Atlas.AtlasCC;
 using Antlr4.Runtime;
 
 namespace Atlas.VM
@@ -14,11 +15,40 @@ namespace Atlas.VM
     {
         static void Main(string[] args)
         {
+            AtlasCodeGen codeGen = new AtlasCodeGen();
+            AtlasCCompiler compiler = new AtlasCCompiler(codeGen);
+
+            string source = File.ReadAllText(args[0]);
+
+            Console.WriteLine("original c code\n");
+            Console.WriteLine(source);
+
+            Console.Write("Press any key to begin compiling...");
+            Console.ReadLine();
+
+            string compiled = compiler.Compile(new AntlrInputStream(source));
+
+            if(compiled == null)
+            {
+                return;
+            }
+
+            Console.WriteLine("compiled program\n");
+            Console.WriteLine(compiled);
+
+            Console.Write("Press any key to begin assembling...");
+            Console.ReadLine();
+
             AtlasAssembler assembler = new AtlasAssembler();
 
-            byte[] program = assembler.Assemble(new AntlrFileStream(args[0]));
+            byte[] program = assembler.Assemble(new AntlrInputStream(compiled));
 
-            Console.WriteLine("assembled program bytes");
+            if (program == null)
+            {
+                return;
+            }
+
+            Console.WriteLine("assembled program bytes\n");
             foreach(byte b in program)
             {
                 Console.WriteLine(b.ToString("X2"));

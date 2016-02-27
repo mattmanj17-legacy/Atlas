@@ -14,7 +14,7 @@ namespace Atlas.AtlasCC
         public CompilerExcepion(string msg) : base(msg) { }
     }
     
-    partial class AtlasCCompiler : CBaseListener, IAntlrErrorListener<IToken>
+    public partial class AtlasCCompiler : CBaseListener, IAntlrErrorListener<IToken>
     {
         //errors and warnings are logged to stdout
         public AtlasCCompiler(AtlasCodeGen codeGen)
@@ -43,9 +43,16 @@ namespace Atlas.AtlasCC
             {
                 CParser.CompilationUnitContext compilationUnit = parser.compilationUnit();
                 ParseTreeWalker walker = new ParseTreeWalker();
-                
+
+                CreatVariable("x", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32),"x"));
+                CreatVariable("true", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), "true"));
+                CreatVariable("false", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), "false"));
+
+                m_codeGen.CodeGenErrorHandler = (s) => { throw new CompilerExcepion(s); };
+
                 walker.Walk(this, compilationUnit);
-                return m_codeGen.GetText();
+
+                return m_codeGen.GetText() + "x : WORD 0\ntrue : WORD TRUE\nfalse : WORD FALSE";
             }
             catch (CompilerExcepion e)
             {

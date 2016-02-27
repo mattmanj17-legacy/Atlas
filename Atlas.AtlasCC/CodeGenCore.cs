@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Atlas.AtlasCC
 {
-    partial class AtlasCodeGen
+    public partial class AtlasCodeGen
     {
         public Action<string> CodeGenErrorHandler;
 

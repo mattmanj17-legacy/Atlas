@@ -66,6 +66,7 @@ instructionCode
 	| JMP
 	| JIF
 	| PUSHBP
+	| PUSHSP
 	| POPB
 	| POPH
 	| POPW
@@ -116,6 +117,7 @@ SW:'SW' ;
 JMP:'JMP';
 JIF:'JIF' ;
 PUSHBP:'PUSHBP'; 
+PUSHSP:'PUSHSP';
 POPB:'POPB' ;
 POPH:'POPH' ;
 POPW:'POPW';
@@ -134,8 +136,8 @@ PUSHW:'PUSHW';
 INT :'-'?[0-9]+;
 HEX :'0''x'HEX_DIGIT+;
 //boolean
-TRUE : 'true';
-FALSE : 'false';
+TRUE : 'TRUE';
+FALSE : 'FALSE';
 //NULL
 NULL : 'NULL';
 //Character

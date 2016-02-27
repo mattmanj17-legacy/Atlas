@@ -11,6 +11,8 @@ namespace Atlas.AtlasCC
     {
         public override void EnterExpression(CParser.ExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
+            
             if (context.parent.GetType() == typeof(CParser.ConditionalExpressionContext))
             {
                 // conditional expresion befor first value expresion
@@ -43,6 +45,8 @@ namespace Atlas.AtlasCC
         
         public override void ExitExpression(CParser.ExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
+            
             if(context.parent.GetType() == typeof(CParser.ExpressionContext))
             {
                 //this expression was the first operand to a comma operator, diregard it
@@ -103,6 +107,8 @@ namespace Atlas.AtlasCC
         //check that an expression is actually constant
         public override void ExitConstantExpression(CParser.ConstantExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
+            
             if (!m_codeGen.CurrentExpresion.Constant)
             {
                 if (context.parent.GetType() == typeof(CParser.LabeledStatementContext))
@@ -132,6 +138,8 @@ namespace Atlas.AtlasCC
         public override void ExitAssignmentExpression(CParser.AssignmentExpressionContext context)
         {
             //handle when parent is a declerator or an initilizer, (do we need to do anything special?)
+
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             
             if (context.conditionalExpression() == null)
             {
@@ -186,6 +194,8 @@ namespace Atlas.AtlasCC
 
         public override void ExitConditionalExpression(CParser.ConditionalExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
+            
             if(context.parent.GetType() == typeof(CParser.ConditionalExpressionContext))
             {
                 //this is the second value expression of a conditional expression
@@ -196,6 +206,7 @@ namespace Atlas.AtlasCC
         //TODO add short circuting
         public override void ExitLogicalOrExpression(CParser.LogicalOrExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.parent.GetType() == typeof(CParser.LogicalOrExpressionContext))
             {
                 m_codeGen.EmitLogicalOrBody();
@@ -205,6 +216,7 @@ namespace Atlas.AtlasCC
         //TODO add short circuting
         public override void ExitLogicalAndExpression(CParser.LogicalAndExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.parent.GetType() == typeof(CParser.LogicalOrExpressionContext))
             {
                 if((context.parent as CParser.LogicalOrExpressionContext).logicalOrExpression() != null)
@@ -220,6 +232,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitInclusiveOrExpression(CParser.InclusiveOrExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.inclusiveOrExpression() != null)
             {
                 m_codeGen.EmitOrOperation();
@@ -227,12 +240,16 @@ namespace Atlas.AtlasCC
 
             if(context.parent.GetType() == typeof(CParser.LogicalAndExpressionContext))
             {
-                m_codeGen.EmitLogicalAndFooter();
+                if ((context.parent as CParser.LogicalAndExpressionContext).logicalAndExpression() != null)
+                {
+                    m_codeGen.EmitLogicalAndFooter();
+                }
             }
         }
 
         public override void ExitExclusiveOrExpression(CParser.ExclusiveOrExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.exclusiveOrExpression() != null)
             {
                 m_codeGen.EmitXorOperation();
@@ -241,6 +258,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitAndExpression(CParser.AndExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.andExpression() != null)
             {
                 m_codeGen.EmitAndOperation();
@@ -249,6 +267,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitEqualityExpression(CParser.EqualityExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.equalityExpression() != null)
             {
                 string operation = context.GetText().Substring(context.equalityExpression().GetText().Length, 2);
@@ -266,6 +285,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitRelationalExpression(CParser.RelationalExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.relationalExpression() != null)
             {
                 int contextLength = context.GetText().Length;
@@ -295,6 +315,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitShiftExpression(CParser.ShiftExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.shiftExpression() == null)
             {
                 //this is a additive expresssion, its value is already on the stack
@@ -317,6 +338,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitAdditiveExpression(CParser.AdditiveExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.additiveExpression() != null)
             {
                 string operation = context.GetText().Substring(context.additiveExpression().GetText().Length, 1);
@@ -334,6 +356,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitMultiplicativeExpression(CParser.MultiplicativeExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.multiplicativeExpression() != null)
             {
                 string operation = context.GetText().Substring(context.multiplicativeExpression().GetText().Length, 1);
@@ -355,6 +378,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitCastExpression(CParser.CastExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.typeName() != null)
             {
                 m_codeGen.EmitCastExpresion(CTypeFromName(context.typeName().GetText()));
@@ -368,10 +392,10 @@ namespace Atlas.AtlasCC
 
         public override void ExitUnaryExpression(CParser.UnaryExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.postfixExpression() != null)
             {
                 //this is a postfix expression, this expression has already been emited
-                return;
             }
             else if (context.unaryOperator() != null)
             {
@@ -427,10 +451,22 @@ namespace Atlas.AtlasCC
                 //alingof or &&
                 SematicError(context, "alignof and && not supported");
             }
+
+            if(context.parent.GetType() == typeof(CParser.AssignmentExpressionContext))
+            {
+                m_codeGen.EmitCloneExpression();
+
+                if((context.parent as CParser.AssignmentExpressionContext).assignmentOperator().GetText() != "=")
+                {
+                    m_codeGen.EmitCloneExpression();
+                    m_codeGen.MakeCurrentExpressionRValue();
+                }
+            }
         }
 
         public override void EnterPostfixExpression(CParser.PostfixExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.parent.GetType() == typeof(CParser.PostfixExpressionContext))
             {
                 if ((context.parent as CParser.PostfixExpressionContext).argumentExpressionList() != null)
@@ -443,6 +479,7 @@ namespace Atlas.AtlasCC
         
         public override void ExitPostfixExpression(CParser.PostfixExpressionContext context)
         {
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.primaryExpression() != null)
             {
                 //this is a primary expression, so its value is already on the stack
@@ -526,8 +563,7 @@ namespace Atlas.AtlasCC
 
         public override void ExitPrimaryExpression(CParser.PrimaryExpressionContext context)
         {
-            base.ExitPrimaryExpression(context);
-
+            m_codeGen.CodeGenErrorHandler = (s) => SematicError(context, s);
             if (context.expression() != null)
             {
                 //this is just an expression, its value of is already on the stack
@@ -535,7 +571,12 @@ namespace Atlas.AtlasCC
             }
             else if (context.Identifier() != null)
             {
-                m_codeGen.EmitIdentifierReference(LabelInfoFromName(context.Identifier().GetText()));
+                LabelInfo label = LabelInfoFromName(context.Identifier().GetText());
+
+                if (label == null)
+                    SematicError(context, "symbol \"" + context.Identifier().GetText() + "\" doe not exist in this scope");
+
+                m_codeGen.EmitIdentifierReference(label);
             }
             else if (context.Constant() != null)
             {

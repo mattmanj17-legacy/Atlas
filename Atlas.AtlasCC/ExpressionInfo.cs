@@ -8,10 +8,17 @@ namespace Atlas.AtlasCC
     public enum CBaseType { }
     public enum ValueCatagory { LValue,  RValue }
     
-    public abstract class ExpressionInfo
+    public class ExpressionInfo
     {
-        public CTypeInfo Type;
-        public ValueCatagory valueCatagory;
-        public bool Constant;
+        public ExpressionInfo(CTypeInfo type, ValueCatagory valueCat, bool isConstant)
+        {
+            Type = type;
+            valueCatagory = valueCat;
+            Constant = isConstant;
+        }
+        
+        public readonly CTypeInfo Type;
+        public readonly ValueCatagory valueCatagory;
+        public readonly bool Constant;
     }
 }

@@ -743,7 +743,10 @@ namespace Atlas.AtlasCC
             ExpressionInfo top = Expressions.Pop();
 
             if (top.valueCatagory == ValueCatagory.RValue)
+            {
+                Expressions.Push(top);
                 return;
+            }
 
             EmitLine("LW");
 

@@ -1,5 +1,5 @@
 ﻿int main()
 {
 	//test expressions
-	x = true ? 2 : 1;
+	x = 1 + 1;
 }

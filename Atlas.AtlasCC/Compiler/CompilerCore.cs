@@ -44,15 +44,13 @@ namespace Atlas.AtlasCC
                 CParser.CompilationUnitContext compilationUnit = parser.compilationUnit();
                 ParseTreeWalker walker = new ParseTreeWalker();
 
-                CreatVariable("x", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32),"x"));
-                CreatVariable("true", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), "true"));
-                CreatVariable("false", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.uint32), "false"));
-
-                m_codeGen.CodeGenErrorHandler = (s) => { throw new CompilerExcepion(s); };
+                CreatVariable("x", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32),"x"));
+                CreatVariable("true", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), "true"));
+                CreatVariable("false", new LabelInfo(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), "false"));
 
                 walker.Walk(this, compilationUnit);
 
-                return m_codeGen.GetText() + "x : WORD 0\ntrue : WORD TRUE\nfalse : WORD FALSE";
+                return m_codeGen.Emit() + "x : WORD 0\ntrue : WORD TRUE\nfalse : WORD FALSE";
             }
             catch (CompilerExcepion e)
             {
@@ -85,6 +83,18 @@ namespace Atlas.AtlasCC
         {
             m_outStream.WriteLine("Error on line " + ctx.Line + ": " + msg);
             throw new CompilerExcepion("Sematic Error");
+        }
+
+        private void SafeCall(ParserRuleContext rule, Action func)
+        {
+            try
+            {
+                func();
+            }
+            catch (CompilerExcepion e)
+            {
+                SematicError(rule, e.Message);
+            }
         }
 
         //destination for errors and warnings

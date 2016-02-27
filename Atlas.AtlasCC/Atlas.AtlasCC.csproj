@@ -49,26 +49,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CodeGenCore.cs" />
-    <Compile Include="CodeGenExpressions.cs" />
-    <Compile Include="C.g4.lexer.cs">
+    <Compile Include="CodeGen\CodeGenCore.cs" />
+    <Compile Include="CodeGen\CodeGenExpressions.cs" />
+    <Compile Include="Antlr\C.g4.lexer.cs">
       <DependentUpon>C.g4</DependentUpon>
     </Compile>
-    <Compile Include="C.g4.parser.cs">
+    <Compile Include="Antlr\C.g4.parser.cs">
       <DependentUpon>C.g4</DependentUpon>
     </Compile>
-    <Compile Include="CompilerDeclerations.cs" />
-    <Compile Include="CompilerExpressions.cs" />
-    <Compile Include="CompilerStatments.cs" />
-    <Compile Include="CTypeInfo.cs" />
-    <Compile Include="ExpressionInfo.cs" />
-    <Compile Include="CompilerCore.cs" />
-    <Compile Include="LabelInfo.cs" />
+    <Compile Include="Compiler\CompilerDeclerations.cs" />
+    <Compile Include="Compiler\CompilerExpressions.cs" />
+    <Compile Include="Compiler\CompilerStatments.cs" />
+    <Compile Include="Compiler\CTypeInfo.cs" />
+    <Compile Include="Emitters\EmitterList.cs" />
+    <Compile Include="Emitters\Expression.cs" />
+    <Compile Include="Compiler\CompilerCore.cs" />
+    <Compile Include="Emitters\IEmitter.cs" />
+    <Compile Include="Compiler\LabelInfo.cs" />
+    <Compile Include="Emitters\OpcodeEmitter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <Antlr4 Include="C.g4">
+    <Antlr4 Include="Antlr\C.g4">
       <Generator>MSBuild:Compile</Generator>
       <CustomToolNamespace>Atlas.AtlasCC</CustomToolNamespace>
     </Antlr4>
@@ -76,6 +79,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="test.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Atlas.Architecture\Atlas.Architecture.csproj">
+      <Project>{3ecdb42f-a161-498b-b2c2-bbcfddce94b0}</Project>
+      <Name>Atlas.Architecture</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

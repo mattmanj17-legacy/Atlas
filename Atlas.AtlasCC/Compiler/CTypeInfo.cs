@@ -7,7 +7,7 @@ namespace Atlas.AtlasCC
 {
     public enum FundamentalType
     {
-        uint32
+        unsignedInt32
     }
     
     public class CTypeInfo
@@ -124,7 +124,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        internal bool CheckFuncArguments(List<ExpressionInfo> args)
+        internal bool CheckFuncArguments(List<Expression> args)
         {
             throw new NotImplementedException();
         }
@@ -138,6 +138,40 @@ namespace Atlas.AtlasCC
         }
 
         internal LabelInfo GetMemberByName(string name)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool IsInteger
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public bool IsArithmetic
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public bool IsFloating
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        internal IReadOnlyList<CTypeInfo> GetArgumentTypes()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal bool IsAssignableFrom(CTypeInfo cTypeInfo)
         {
             throw new NotImplementedException();
         }

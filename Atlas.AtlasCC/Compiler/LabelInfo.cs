@@ -5,9 +5,9 @@ using System.Text;
 
 namespace Atlas.AtlasCC
 {
-    public class LabelInfo
+    public class CVariable
     {
-        public LabelInfo(CTypeInfo type, int offset, CTypeInfo parentType)
+        public CVariable(CType type, int offset, CType parentType)
         {
             this.type = type;
             this.offset = offset;
@@ -16,7 +16,7 @@ namespace Atlas.AtlasCC
             name = "";
         }
 
-        public LabelInfo(CTypeInfo type, int offset)
+        public CVariable(CType type, int offset)
         {
             this.type = type;
             this.offset = offset;
@@ -25,7 +25,7 @@ namespace Atlas.AtlasCC
             name = "";
         }
 
-        public LabelInfo(CTypeInfo type, string name)
+        public CVariable(CType type, string name)
         {
             this.type = type;
             this.name = name;
@@ -63,7 +63,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public CTypeInfo Type
+        public CType Type
         {
             get
             {
@@ -74,7 +74,7 @@ namespace Atlas.AtlasCC
         private readonly int offset;
         private readonly bool ismember;
         private readonly bool islocal;
-        private readonly CTypeInfo type;
+        private readonly CType type;
         private readonly string name;
     }
 }

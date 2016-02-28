@@ -32,10 +32,10 @@ namespace Atlas.AtlasCC
                 The comma operator returns an rvalue
              */
 
-            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = PopExpression().ToRValue();
             Expression lhs = PopExpression();
 
-            Expression result = new Expression(rhs.Type, ValueCatagory.RValue, 0, false);
+            Expression result = new Expression(rhs.Type, ValueCatagory.RValue);
             result.Add(lhs);
             result.Add(new OpCodeEmitter(OpCode.POPW));
             result.Add(rhs);
@@ -66,24 +66,24 @@ namespace Atlas.AtlasCC
                 assignment operators are rvalue expressions
              */
 
-            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = PopExpression().ToRValue();
             Expression lhs = PopExpression();
 
-            if(lhs.valueCatagory != ValueCatagory.LValue)
+            if(lhs.valueCatagory != ValueCatagory.LValueModifiable)
             {
                 CodeGenError("Cannot assign to a non lvalue");
             }
 
-            if (!lhs.Type.IsAssignableFrom(rhs.Type))
+            if (!lhs.CanConvertImplicitlyToType(rhs.Type))
             {
                 CodeGenError("cannot assign value of type " + rhs.Type + " to value of type " + lhs.Type);
             }
 
-            Expression result = new Expression(rhs.Type,ValueCatagory.RValue,0,false);
+            Expression result = new Expression(rhs.Type,ValueCatagory.RValue);
 
             result.Add(lhs);
-            result.Add(DuplicatePreviousExpresionValue());
-            result.Add(rhs.CastTo(lhs.Type));
+            result.Add(CopyTopOfStackOperation());
+            result.Add(rhs.ConvertToType(lhs.Type));
             result.Add(new OpCodeEmitter(OpCode.SW));
             result.Add(new OpCodeEmitter(OpCode.LW));
 
@@ -92,10 +92,10 @@ namespace Atlas.AtlasCC
 
         private void EmitCompoundAssignmentHeader()
         {
-            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = PopExpression().ToRValue();
             Expression lhs = PopExpression();
 
-            Expression lhsValue = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
+            Expression lhsValue = new Expression(lhs.Type, ValueCatagory.RValue);
             lhsValue.Add(lhs);
             lhs.Add(new OpCodeEmitter(OpCode.LW));
 
@@ -213,11 +213,11 @@ namespace Atlas.AtlasCC
              */
 
 
-            Expression exprf = MakeExpressionRValue(PopExpression());
-            Expression exprt = MakeExpressionRValue(PopExpression());
-            Expression condition = MakeExpressionRValue(PopExpression());
+            Expression exprf = PopExpression().ToRValue();
+            Expression exprt = PopExpression().ToRValue();
+            Expression condition = PopExpression().ToRValue();
 
-            if(!condition.Type.IsScalar)
+            if(!condition.Type.InTypeGroup(CTypeGroups.CScalar))
             {
                 CodeGenError("codition in a conditional expresion must be a scalar type");
             }
@@ -238,7 +238,7 @@ namespace Atlas.AtlasCC
             //(exprf)
             //ENDCONDITION:
             
-            Expression result = new Expression(exprt.Type, ValueCatagory.RValue, 0, false);
+            Expression result = new Expression(exprt.Type, ValueCatagory.RValue);
 
             //(lhs)
             result.Add(condition);
@@ -284,10 +284,10 @@ namespace Atlas.AtlasCC
                 If the result of lhs does not compare equal to zero, then rhs is not evaluated at all (so-called short-cirquit evaluation)
              */
 
-            Expression rhs = MakeExpressionRValue(PopExpression());
-            Expression lhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = PopExpression().ToRValue();
+            Expression lhs = PopExpression().ToRValue();
 
-            if (!lhs.Type.IsScalar || !rhs.Type.IsScalar)
+            if (!lhs.Type.InTypeGroup(CTypeGroups.CScalar) || !rhs.Type.InTypeGroup(CTypeGroups.CScalar))
             {
                 CodeGenError("operands to logical operation must be scalar");
             }
@@ -299,12 +299,12 @@ namespace Atlas.AtlasCC
             //pop
             //(rhs)
             //end:
-            Expression result = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), ValueCatagory.RValue, 0, false);
+            Expression result = new Expression(CType.FromTypeClass(CTypeClass.CInt), ValueCatagory.RValue);
 
             //(lhs)
             result.Add(lhs);
             //duptop
-            result.Add(DuplicatePreviousExpresionValue());
+            result.Add(CopyTopOfStackOperation());
             //push end
             string label = AutoGenerateLabel("LogicalOrEnd");
             result.Add(new OpCodeEmitter(OpCode.PUSHW, label));
@@ -332,10 +332,10 @@ namespace Atlas.AtlasCC
                 If the result of lhs compares equal to zero, then rhs is not evaluated at all (so-called short-cirquit evaluation)
              */
 
-            Expression rhs = MakeExpressionRValue(PopExpression());
-            Expression lhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = PopExpression().ToRValue();
+            Expression lhs = PopExpression().ToRValue();
 
-            if(!lhs.Type.IsScalar || !rhs.Type.IsScalar)
+            if (!lhs.Type.InTypeGroup(CTypeGroups.CScalar) || !rhs.Type.InTypeGroup(CTypeGroups.CScalar))
             {
                 CodeGenError("operands to logical operation must be scalar");
             }
@@ -348,12 +348,12 @@ namespace Atlas.AtlasCC
             //pop
             //(rhs)
             //end:
-            Expression result = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), ValueCatagory.RValue, 0, false);
+            Expression result = new Expression(CType.FromTypeClass(CTypeClass.CInt), ValueCatagory.RValue);
 
             //(lhs)
             result.Add(lhs);
             //duptop
-            result.Add(DuplicatePreviousExpresionValue());
+            result.Add(CopyTopOfStackOperation());
 
             //lnot
             PushExpression(result);
@@ -443,7 +443,7 @@ namespace Atlas.AtlasCC
 
         public void EmitLessThanOrEqualOperation()
         {
-            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = PopExpression().ToRValue();
             rhs.Add(new OpCodeEmitter(OpCode.PUSHW, "1")); //todo remember this will break if we ever go ti floats
             rhs.Add(new OpCodeEmitter(OpCode.ADD));
             PushExpression(rhs);
@@ -521,8 +521,8 @@ namespace Atlas.AtlasCC
 
         private Expression HandleArithmeticOperands(ArithmeticPointerHandlingType pointerHandlingType = ArithmeticPointerHandlingType.Reject)
         {
-            Expression rhs = MakeExpressionRValue(PopExpression());
-            Expression lhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = PopExpression().ToRValue();
+            Expression lhs = PopExpression().ToRValue();
 
             if (pointerHandlingType == ArithmeticPointerHandlingType.PointerArithmatic && (lhs.Type.IsPointer || rhs.Type.IsPointer))
             {
@@ -533,22 +533,22 @@ namespace Atlas.AtlasCC
                 
                 if (lhs.Type.IsPointer && !rhs.Type.IsPointer)
                 {
-                    rhs.Add(new OpCodeEmitter(OpCode.PUSHW, lhs.Type.TypePointedTo.SizeOf.ToString()));
+                    rhs.Add(new OpCodeEmitter(OpCode.PUSHW, lhs.Type.ContainedType.Size.ToString()));
                     rhs.Add(new OpCodeEmitter(OpCode.MUL));
-                    Expression temp = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
+                    Expression temp = new Expression(lhs.Type, ValueCatagory.RValue);
                     temp.Add(rhs);
                     rhs = temp;
                 }
                 else if (!lhs.Type.IsPointer && rhs.Type.IsPointer)
                 {
-                    lhs.Add(new OpCodeEmitter(OpCode.PUSHW, rhs.Type.TypePointedTo.SizeOf.ToString()));
+                    lhs.Add(new OpCodeEmitter(OpCode.PUSHW, rhs.Type.ContainedType.Size.ToString()));
                     lhs.Add(new OpCodeEmitter(OpCode.MUL));
-                    Expression temp = new Expression(rhs.Type, ValueCatagory.RValue, 0, false);
+                    Expression temp = new Expression(rhs.Type, ValueCatagory.RValue);
                     temp.Add(lhs);
                     lhs = temp;
                 }
 
-                Expression result = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
+                Expression result = new Expression(lhs.Type, ValueCatagory.RValue);
 
                 result.Add(lhs);
                 result.Add(rhs);
@@ -558,8 +558,8 @@ namespace Atlas.AtlasCC
             {
                 if (pointerHandlingType == ArithmeticPointerHandlingType.Cast)
                 {
-                    if (rhs.Type.IsPointer) rhs = rhs.CastTo(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32));
-                    if (lhs.Type.IsPointer) lhs = lhs.CastTo(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32));
+                    if (rhs.Type.IsPointer) rhs = rhs.CastTo(CType.FromTypeClass(CTypeClass.CInt32));
+                    if (lhs.Type.IsPointer) lhs = lhs.CastTo(CType.FromTypeClass(CTypeClass.CInt32));
                 }
 
 
@@ -571,7 +571,7 @@ namespace Atlas.AtlasCC
                 rhs = rhs.PromoteInteger();
                 lhs = lhs.PromoteInteger();
 
-                Expression result = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), ValueCatagory.RValue, 0, false);
+                Expression result = new Expression(CType.FromTypeClass(CTypeClass.CInt32), ValueCatagory.RValue, 0, false);
 
                 result.Add(lhs);
                 result.Add(rhs);
@@ -579,10 +579,9 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public void EmitCastExpresion(CTypeInfo type)
+        public void EmitCastExpresion(CType type)
         {
-            //handled by inline function probably
-            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = PopExpression().ToRValue();
 
             if(!rhs.CanCastTo(type))
             {
@@ -594,10 +593,10 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public void EmitSizeOfType(CTypeInfo type)
+        public void EmitSizeOfType(CType type)
         {
-            Expression expr = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32),ValueCatagory.RValue,type.SizeOf,true);
-            expr.Add(new OpCodeEmitter(OpCode.PUSHW, type.SizeOf.ToString()));
+            Expression expr = new Expression(CType.FromTypeClass(CTypeClass.CInt32),ValueCatagory.RValue,type.SizeOf,true);
+            expr.Add(new OpCodeEmitter(OpCode.PUSHW, type.Size.ToString()));
             PushExpression(expr);
         }
 
@@ -626,14 +625,14 @@ namespace Atlas.AtlasCC
         {
             Expression rhs = PopExpression();
 
-            if (rhs.Type.IsPointer && rhs.Type.TypePointedTo.IsFunction)
+            if (rhs.Type.TypeClass == CTypeClass.CPointer && rhs.Type.ContainedType.TypeClass == CTypeClass.CFunction)
             {
                 //ignore taking the address of a function (it is already a pointer)
                 PushExpression(rhs);
             }
             else
             {
-                if (rhs.valueCatagory != ValueCatagory.LValue)
+                if (rhs.valueCatagory != ValueCatagory.LValueModifiable)
                 {
                     CodeGenError("cannot take the addres of a non lvalue");
                 }
@@ -660,7 +659,7 @@ namespace Atlas.AtlasCC
              Dereferencing a null pointer, a pointer to an object outside of its lifetime (a dangling pointer), a misaligned pointer, or a pointer with indeterminate value is undefined behavior (handled in architecture)
              */
 
-            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression rhs = ConvertLValueToRValue(PopExpression());
 
             if (!rhs.Type.IsPointer)
             {
@@ -679,7 +678,7 @@ namespace Atlas.AtlasCC
             else
             {
                 //todo handle pointer to const
-                result = new Expression(rhs.Type.TypePointedTo, ValueCatagory.LValue, 0, false);
+                result = new Expression(rhs.Type.TypePointedTo, ValueCatagory.LValueModifiable, 0, false);
                 result.Add(rhs);
             }
 
@@ -702,7 +701,7 @@ namespace Atlas.AtlasCC
                 The type of the expression is the type after promotion, and the value category is non-lvalue.
              */
 
-            Expression expr = MakeExpressionRValue(PopExpression());
+            Expression expr = ConvertLValueToRValue(PopExpression());
 
             if(!expr.Type.IsArithmetic)
             {
@@ -732,7 +731,7 @@ namespace Atlas.AtlasCC
             //the operator ~ performs integer promotions on its only operand
             // for unsigned types (after promotion), the expression ~E is equivalent to the maximum value representable by the result type minus the original value of E
             
-            Expression rhs =  MakeExpressionRValue(PopExpression());
+            Expression rhs =  ConvertLValueToRValue(PopExpression());
 
             if(!rhs.Type.IsInteger)
             {
@@ -742,7 +741,7 @@ namespace Atlas.AtlasCC
             rhs = rhs.PromoteInteger();
 
             //todo handle constant
-            Expression result = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32),ValueCatagory.RValue,~rhs.ConstantValue,rhs.IsConstant);
+            Expression result = new Expression(CType.FromTypeClass(CTypeClass.CInt32),ValueCatagory.RValue,~rhs.ConstantValue,rhs.IsConstant);
             result.Add(rhs);
             result.Add(new OpCodeEmitter(OpCode.NOT));
 
@@ -796,7 +795,7 @@ namespace Atlas.AtlasCC
 
             Expression expr = PopExpression();
 
-            if (expr.valueCatagory != ValueCatagory.LValue)
+            if (expr.valueCatagory != ValueCatagory.LValueModifiable)
             {
                 CodeGenError("The operand of both prefix and postfix increment or decrement must be a modifiable lvalue");
             }
@@ -818,9 +817,9 @@ namespace Atlas.AtlasCC
             }
             else
             {
-                result.Add(DuplicatePreviousExpresionValue());
+                result.Add(CopyTopOfStackOperation());
             }
-            result.Add(DuplicatePreviousExpresionValue());
+            result.Add(CopyTopOfStackOperation());
             result.Add(new OpCodeEmitter(OpCode.LW));
             result.Add(new OpCodeEmitter(OpCode.PUSHW, (expr.Type.IsPointer ? expr.Type.TypePointedTo.SizeOf : 1).ToString()));
 
@@ -842,11 +841,11 @@ namespace Atlas.AtlasCC
             PushExpression(result);
         }
 
-        public void EmitMemberAccess(LabelInfo label)
+        public void EmitMemberAccess(CVariable label)
         {
             Expression obj = PopExpression();
 
-            if (obj.valueCatagory != ValueCatagory.LValue)
+            if (obj.valueCatagory != ValueCatagory.LValueModifiable)
             {
                 CodeGenError("cannot get member from rvalue expression");
             }
@@ -854,7 +853,7 @@ namespace Atlas.AtlasCC
             if (obj.Type.HasMembers && obj.Type.HasMember(label))
             {
                 //todo handel const members
-                Expression result = new Expression(obj.Type.GetMemberType(label), ValueCatagory.LValue, 0, false);
+                Expression result = new Expression(obj.Type.GetMemberType(label), ValueCatagory.LValueModifiable, 0, false);
                 result.Add(obj);
                 result.Add(new OpCodeEmitter(OpCode.PUSHW, obj.Type.GetMemberOffset(label).ToString()));
                 result.Add(new OpCodeEmitter(OpCode.ADD));
@@ -867,7 +866,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public void EmitPointerAccess(LabelInfo label)
+        public void EmitPointerAccess(CVariable label)
         {
             EmitDereferenceOperation();
             EmitMemberAccess(label);
@@ -890,7 +889,7 @@ namespace Atlas.AtlasCC
 
             for (int i = 0; i < numPassedArguments; i++)
             {
-                arguments.Add(MakeExpressionRValue(PopExpression()));
+                arguments.Add(ConvertLValueToRValue(PopExpression()));
             }
 
             Expression functionName = PopExpression();
@@ -900,7 +899,7 @@ namespace Atlas.AtlasCC
                 CodeGenError("canot call expresion of type " + functionName.Type.ToString() + ": expected pointer to function");
             }
 
-            IReadOnlyList<CTypeInfo> argTyps = functionName.Type.TypePointedTo.GetArgumentTypes();
+            IReadOnlyList<CType> argTyps = functionName.Type.TypePointedTo.GetArgumentTypes();
 
             if (numPassedArguments < argTyps.Count)
             {
@@ -923,7 +922,7 @@ namespace Atlas.AtlasCC
                 }
             }
 
-            CTypeInfo RetType = functionName.Type.TypePointedTo.ReturnType;
+            CType RetType = functionName.Type.TypePointedTo.ReturnType;
 
             Expression result = new Expression(RetType, ValueCatagory.RValue, 0, false);
 
@@ -970,10 +969,10 @@ namespace Atlas.AtlasCC
             int size = array.Type.TypePointedTo.SizeOf;
 
             //todo support const arrays/ const array elements
-            Expression result = new Expression(array.Type.TypePointedTo, ValueCatagory.LValue, 0, false);
+            Expression result = new Expression(array.Type.TypePointedTo, ValueCatagory.LValueModifiable, 0, false);
 
-            result.Add(MakeExpressionRValue(array));
-            result.Add(MakeExpressionRValue(index));
+            result.Add(ConvertLValueToRValue(array));
+            result.Add(ConvertLValueToRValue(index));
             result.Add(new OpCodeEmitter(OpCode.PUSHW, size.ToString()));
             result.Add(new OpCodeEmitter(OpCode.MUL));
             result.Add(new OpCodeEmitter(OpCode.ADD));
@@ -1001,12 +1000,12 @@ namespace Atlas.AtlasCC
             throw new NotSupportedException();
         }
 
-        public void EmitIdentifierReference(LabelInfo label)
+        public void EmitIdentifierReference(CVariable label)
         {
             bool isFunctionPointer = label.Type.IsPointer && label.Type.TypePointedTo.IsFunction;
             
             //TODO constant labels
-            Expression result = new Expression(label.Type, isFunctionPointer ? ValueCatagory.RValue : ValueCatagory.LValue, 0, false);
+            Expression result = new Expression(label.Type, isFunctionPointer ? ValueCatagory.RValue : ValueCatagory.LValueModifiable, 0, false);
 
             if (label.IsMember)
             {
@@ -1040,7 +1039,7 @@ namespace Atlas.AtlasCC
              */
 
             int value;
-            CTypeInfo type;
+            CType type;
             ParseAsConstant(literal, out value, out type);
 
             Expression constant = new Expression(type, ValueCatagory.RValue, value, true);
@@ -1049,34 +1048,15 @@ namespace Atlas.AtlasCC
             PushExpression(constant);
         }
 
-        private void ParseAsConstant(string literal, out int value, out CTypeInfo type)
+        private void ParseAsConstant(string literal, out int value, out CType type)
         {
             //TODO FIX
             //hack, assuming all lits are ints     
             value = int.Parse(literal);
-            type = CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32);
+            type = CType.FromTypeClass(CTypeClass.CInt32);
         }
 
-        public Expression MakeExpressionRValue(Expression exp)
-        {
-            Expression converted;
-
-            if (exp.valueCatagory != ValueCatagory.RValue)
-            {
-                converted = new Expression(exp.Type, ValueCatagory.RValue, exp.ConstantValue, exp.IsConstant);
-                converted.Add(exp);
-                converted.Add(new OpCodeEmitter(OpCode.LW));
-                return converted;
-            }
-            else
-            {
-                converted = exp;
-            }
-
-            return converted;
-        }
-
-        private IEmitter DuplicatePreviousExpresionValue()
+        private IEmitter CopyTopOfStackOperation()
         {
             EmitterList emitters = new EmitterList();
 

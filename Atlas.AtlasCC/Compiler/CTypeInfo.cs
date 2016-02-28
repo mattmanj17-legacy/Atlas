@@ -5,183 +5,522 @@ using System.Text;
 
 namespace Atlas.AtlasCC
 {
-    public enum FundamentalType
+    /* Objects, functions, and expressions have a property called type, 
+     * which determines the interpretation of the binary value stored in an object or 
+     * evaluated by the expression.
+     */
+    //http://en.cppreference.com/w/c/language/type
+    
+    public enum CTypeClass
     {
-        unsignedInt32
+        //void
+        CVoid,
+        
+        /*Arithmetic types*/
+        //http://en.cppreference.com/w/c/language/arithmetic_types
+        
+        /* bool (byte)
+         * bool, capable of holding one of the two values: 1(true) and 0(false).
+         * Note that conversion to _Bool does not work the same as conversion to other integer types: (bool)0.5 evaluates to 1, whereas (int)0.5 evaluates to ​0​.
+         */
+        CBool,
+        
+        /* char (byte)
+         * type for character representation. 
+         * Equivalent to either signed char or unsigned char (which one is implementation-defined), 
+         * but char is a distinct type, different from both signed char both unsigned char
+         */
+        CChar,
+        
+        /* signed (two's complement) char (byte) 
+         * type for signed character representation.
+         */
+        CSChar,
+        
+        /* unsigned char - type for unsigned character representation. 
+         * Also used to inspect object representations (raw byte).
+         */
+        CUChar,
+
+        // sizes of Integer types based on ILP32
+
+        /*Note: integer arithmetic is defined differently for the signed and unsigned integer types. 
+         * See arithmetic operators, in particular integer overflows.*/
+        //http://en.cppreference.com/w/c/language/operator_arithmetic
+
+        // signed (two's complement), 2 byte int
+        CShortInt,
+        // unsigned, 2 byte int
+        CUShortInt,
+        // signed (two's complement), 4 byte int
+        CInt,
+        // unsigned, 4 byte int
+        CUInt,
+        // signed (two's complement), 4 byte int
+        CLongInt,
+        // unsigned, 4 byte int
+        CULongInt,
+        // signed (two's complement), 8 byte int (not implimented)
+        CLongLongInt,
+        // unsigned, 8 byte int (not implimented)
+        CULongLongInt,
+
+
+        //FLOATING POINT UNSUPPORTED
+        //ADD MORE DOCUMENTATION IF FLOAT SUPPORT IS ADDED
+
+        // IEEE-754 https://en.wikipedia.org/wiki/IEEE_floating_point
+        
+        //single precision floating point type. Matches IEEE-754 32 bit floating point type if supported.
+        CFloat,
+        //double precision floating point type. Matches IEEE-754 64 bit floating point type if supported
+        CDouble,
+        /* extended precision floating point type. 
+         * Matches IEEE-754 extended floating-point type if supported, 
+         * otherwise matches some non-standard extended floating-point type 
+         * as long as its precision is better than double and range is at least as good as double, 
+         * otherwise matches the type double.*/
+        CLongDouble,
+
+        //COMPLEX FLOATING TYPES UNSUPPORTED
+        //IMAGINARY FLOATING TYPES UNSUPPORTED
+
+        /* An enumerated type is a distinct type whose value 
+         * is a value of its underlying type (int), 
+         * which includes the values of explicitly named constants (enumeration constants).
+         * FOR SIMPLICITY, ALL ENUMS ARE WORD SIZE
+         */
+        //http://en.cppreference.com/w/c/language/enum
+        CEnum,
+
+        /* Array is a type consisting of a contiguously allocated 
+         * nonempty sequence of objects with a particular element type. 
+         * The number of those objects (the array size) 
+         * never changes during the array lifetime.
+         */
+        CArray,
+
+        /* A struct is a type consisting of a sequence of members 
+         * whose storage is allocated in an ordered sequence.
+         */
+        CStruct,
+
+        //UNION NOT SUPPORTED
+
+        /* A function is a C language construct that associates a compound statement 
+         * (the function body) 
+         * with an identifier (the function name). 
+         * Every C program begins execution from the main function, 
+         * which either terminates, or invokes other functions 
+         * Functions may accept zero or more parameters, 
+         * which are initialized from the arguments of a function call operator, 
+         * and may return a value to its caller by means of the return statement.
+         */
+        // http://en.cppreference.com/w/c/language/functions
+        CFunction,
+
+        /* Pointer is a type of an object that refers to a function or an object of another type, 
+         * possibly adding qualifiers. 
+         * Pointer may also refer to nothing, which is indicated by the special null pointer value. 
+         * Pointers are used for indirection, which is a ubiquitous programming technique; 
+         * they can be used to implement pass-by-reference semantics, 
+         * to access objects with dynamic storage duration, 
+         * to implement "optional" types (using the null pointer value), 
+         * aggregation relationship between structs, 
+         * callbacks (using pointers to functions), 
+         * generic interfaces (using pointers to void), 
+         * and much more.
+         * Pointer to object of any type can be implicitly converted to pointer to void 
+         * and vice versa:
+         * Pointers to void are used to pass objects of unknown type
+         * Pointers of every type have a special value known as null pointer value of that type. 
+         * A pointer whose value is null does not point to an object or a function (dereferencing a null pointer is undefined behavior), 
+         * and compares equal to all pointers of the same type whose value is also null.
+         * To initialize a pointer to null or to assign the null value to an existing pointer, 
+         * an integer constant with the value zero may be used
+         */
+        //http://en.cppreference.com/w/c/language/pointer
+        CPointer
+
+        //ATOMIC NOT SUPORTED
+    }
+
+    /* For every type listed above several qualified versions of its type may exist, 
+     * corresponding to the combinations of one, two, or all three of the 
+     * const, volatile, and restrict 
+     * qualifiers 
+     * (where allowed by the qualifier's semantics).
+     * for two types to be compatible, their qualifications must be identical.
+     */
+
+    //unused for now, because all we car about is const
+    public enum CTypeQualification
+    {
+        /* Objects declared with const-qualified types may be placed in 
+         * read-only memory by the compiler,
+         * and if the address of a const object is never taken in a program, 
+         * it may not be stored at all.
+         * const semantics apply to lvalue expressions only; 
+         * whenever a const lvalue expression is used in context that does not require an lvalue, 
+         * its const qualifier is lost (note that volatile qualifier, if present, isn't lost).
+         * lvalue expressions that designate objects of const-qualified type
+         * or lvalue objects of struct or union type with at least one member of const-qualified type
+         * are NOT modifiable lvalues. In particular, they are not assignable
+         * A pointer to an non-const type can be implicitly converted 
+         * to a pointer to const-qualified version of the same or compatible type. 
+         * The reverse conversion can be performed with a cast expression (THIS CAST IS NOT SUPPORTED BY ATLAS).
+         */
+        //http://en.cppreference.com/w/c/language/const
+        CConst,
+
+        // volatile is related to compiler optimizations, 
+        // which do not exist in atlas right now. so for now, this is ignored
+        //http://en.cppreference.com/w/c/language/volatile
+        CVolatile,
+
+        // restrict is related to compiler optimizations, 
+        // which do not exist in atlas right now. so for now, this is ignored
+        //http://en.cppreference.com/w/c/language/restrict
+        CRestrict
+    }
+
+    [Flags]
+    public enum CTypeGroups
+    {
+        CObject = 1 << 0, //all types that aren't function types
+        CCharacter = 1 << 1, // char, signed char, unsigned char
+        CInt = 1 << 2, //  char, signed integer types, unsigned integer types, enumerated types
+        CArithmetic = 1 << 3, // integer types and floating types
+        CScalar = 1 << 4, // arithmetic types and pointer types
+        CAggregate = 1 << 5, // array types and structure types
+        CDerivedType = 1 << 6 // array types, function types, and pointer types
     }
     
-    public class CTypeInfo
+    public class CType
     {
-        public static CTypeInfo FromFundamentalType(FundamentalType type)
+        public static CTypeGroups GetTypeGroup(CTypeClass classification)
         {
-            return new CTypeInfo(type, false);
+            switch(classification)
+            {
+                case CTypeClass.CVoid:
+                    return CTypeGroups.CObject;
+                case CTypeClass.CChar:
+                case CTypeClass.CSChar:
+                case CTypeClass.CUChar:
+                    return CTypeGroups.CObject | CTypeGroups.CCharacter | CTypeGroups.CInt | CTypeGroups.CArithmetic | CTypeGroups.CScalar;
+                case CTypeClass.CShortInt:
+                case CTypeClass.CUShortInt:
+                case CTypeClass.CInt:
+                case CTypeClass.CUInt:
+                case CTypeClass.CLongInt:
+                case CTypeClass.CULongInt:
+                case CTypeClass.CLongLongInt:
+                case CTypeClass.CULongLongInt:
+                case CTypeClass.CEnum:
+                    return CTypeGroups.CObject | CTypeGroups.CInt | CTypeGroups.CArithmetic | CTypeGroups.CScalar;
+                case CTypeClass.CFloat:
+                case CTypeClass.CDouble:
+                case CTypeClass.CLongDouble:
+                    return CTypeGroups.CObject | CTypeGroups.CArithmetic | CTypeGroups.CScalar;
+                case CTypeClass.CArray:
+                    return CTypeGroups.CObject | CTypeGroups.CAggregate | CTypeGroups.CDerivedType;
+                case CTypeClass.CStruct:
+                    return CTypeGroups.CObject | CTypeGroups.CAggregate;
+                case CTypeClass.CFunction:
+                    return CTypeGroups.CDerivedType;
+                case CTypeClass.CPointer:
+                    return CTypeGroups.CObject | CTypeGroups.CScalar | CTypeGroups.CDerivedType;
+                default:
+                    throw new InvalidOperationException("unrecognized type clasification");
+            }
         }
 
-        public CTypeInfo(FundamentalType type, bool pointer)
+        public static CType FromTypeClass(CTypeClass typeClass)
         {
-            ftype = type;
-            isPointer = pointer;
+            throw new NotImplementedException();
         }
 
-        private FundamentalType ftype;
-        bool isPointer;
+        public static int TypeClassSizeInBytes(CTypeClass typeClass)
+        {
+            switch (typeClass)
+            {
+                //1 (8 bits)
+                case CTypeClass.CChar:
+                case CTypeClass.CSChar:
+                case CTypeClass.CUChar:
+                    return 1;
+                //2 (16 bits)
+                case CTypeClass.CShortInt:
+                case CTypeClass.CUShortInt:
+                    return 2;
+                //4 (32 bits)
+                case CTypeClass.CInt:
+                case CTypeClass.CUInt:
+                case CTypeClass.CLongInt:
+                case CTypeClass.CULongInt:
+                case CTypeClass.CEnum:
+                case CTypeClass.CFloat:
+                case CTypeClass.CPointer:
+                    return 4;
+                //8 (64 bits)
+                case CTypeClass.CLongLongInt:
+                case CTypeClass.CULongLongInt:
+                case CTypeClass.CDouble:
+                case CTypeClass.CLongDouble:
+                    return 8;
+                //incomplete types
+                case CTypeClass.CVoid:
+                case CTypeClass.CArray:
+                case CTypeClass.CStruct:
+                case CTypeClass.CFunction:
+                    return -1;
+                default:
+                    throw new InvalidOperationException("unrecognized type clasification");
+            }
+        }
+
+        public bool CompatableWith(CType type)
+        {
+            /* In a C program, 
+             * the declarations referring to the same object or function in different translation units 
+             * do not have to use the same type. 
+             * They only have to use sufficiently similar types, 
+             * formally known as compatible types. 
+             * Same applies to function calls and lvalue accesses; 
+             * argument types must be compatible with parameter types and lvalue expression type 
+             * must be compatible with the object type that is accessed.
+             * The types T and U are compatible, if...
+             */
+            bool equ = false;
+            // they are the same type
+            equ = equ || this.Equals(type);
+            // they are pointer types and are pointing to compatible types
+            equ = equ || (TypeClass == CTypeClass.CPointer && type.TypeClass == CTypeClass.CPointer && ContainedType.CompatableWith(type.ContainedType));
+            /*they are array types, their element types are compatible, and both have the same size.*/
+            equ = equ || (TypeClass == CTypeClass.CArray && type.TypeClass == CTypeClass.CArray && ArraySize == type.ArraySize && ContainedType.CompatableWith(type.ContainedType));
+            //one is an enumerated type and the other is that enumeration's underlying type
+            equ = equ || ((TypeClass == CTypeClass.CEnum && type.TypeClass == CTypeClass.CInt) || (TypeClass == CTypeClass.CInt && type.TypeClass == CTypeClass.CEnum));
+            /* they are function types, and 
+             * their return types are compatible 
+             * they both use parameter lists, the number of parameters is the same, 
+             * and the corresponding parameters have compatible types
+             */
+            equ = equ || ((TypeClass == CTypeClass.CFunction && type.TypeClass == CTypeClass.CFunction) && FunctionTypesCompatable(type));
+            return equ;
+        }
+
+        private bool FunctionTypesCompatable(CType type)
+        {
+            bool equ = true;
+            equ = equ && FunctionReturnType.CompatableWith(type);
+            equ = equ && FunctionArgumentTypes.Count == type.FunctionArgumentTypes.Count;
+
+            for(int i = 0; i < FunctionArgumentTypes.Count; i++)
+            {
+                if (!equ) break;
+
+                equ = FunctionArgumentTypes[i].CompatableWith(type.FunctionArgumentTypes[i]);
+            }
+
+            return equ;
+        }
+
+        public int Size
+        {
+            get
+            {
+                if(!Complete)
+                {
+                    throw new CompilerExcepion("cannot get size of incompleate type");
+                }
+                else
+                {
+                    int classSize = TypeClassSizeInBytes(TypeClass);
+                    if(classSize != -1)
+                    {
+                        return classSize;
+                    }
+                    else if(TypeClass == CTypeClass.CArray)
+                    {
+                        return ArraySize * ContainedType.Size;
+                    }
+                    else if(TypeClass == CTypeClass.CStruct)
+                    {
+                        int structSize = 0;
+                        foreach (var member in StructMembers)
+                        {
+                            structSize += member.Type.Size;
+                        }
+
+                        return structSize;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException();
+                    }
+                }
+            }
+        }
+
+        /* An incomplete type is an object type that lacks sufficient information 
+         * to determine the size of the objects of that type. 
+         * An incomplete type may be completed at some point in the translation unit.
+         * The following types are incomplete:
+         * the type void. This type cannot be completed.
+         * structure type of unknown content. 
+         * It can be completed by a declaration of the same structure that defines its content later in the same scope.
+         */
+        public bool Complete
+        {
+            get
+            {
+                if(TypeClass == CTypeClass.CVoid || TypeClass == CTypeClass.CFunction)
+                {
+                    return false;
+                }
+                else if(TypeClass == CTypeClass.CStruct)
+                {
+                    bool membersComplete = true;
+                    foreach(var member in StructMembers)
+                    {
+                        if(!member.Type.Complete)
+                        {
+                            membersComplete = false;
+                            break;
+                        }
+                    }
+                    return m_structComplete && membersComplete;
+                }
+                else if (TypeClass == CTypeClass.CArray)
+                {
+                    return m_containedType.Complete;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+        }
+
+        public void SpecifyStructMembers(IReadOnlyList<CVariable> members)
+        {
+            m_structMembers = members;
+            m_structComplete = true;
+        }
+
+        public bool InTypeGroup(CTypeGroups group)
+        {
+            return GetTypeGroup(m_typeClass).HasFlag(group);
+        }
+
+        public CTypeClass TypeClass
+        {
+            get
+            {
+                return m_typeClass;
+            }
+        }
+
+        public bool IsConst
+        {
+            get
+            {
+                return m_isConst;
+            }
+        }
+
+        public string TypeName
+        {
+            get
+            {
+                return m_typeName;
+            }
+        }
+
+        public int ArraySize
+        {
+            get
+            {
+                return m_arraySize;
+            }
+        }
+
+        public CType ContainedType
+        {
+            get
+            {
+                return m_containedType;
+            }
+        }
+
+        public IReadOnlyList<CVariable> EnumConstants
+        {
+            get
+            {
+                return m_enumConstants;
+            }
+        }
+
+        public IReadOnlyList<CVariable> StructMembers
+        {
+            get
+            {
+                return m_structMembers;
+            }
+        }
+
+        public CType FunctionReturnType
+        {
+            get
+            {
+                return m_functionReturnType;
+            }
+        }
         
-        public override string ToString()
-        {
-            return "int";
-        }
-
-        public int SizeOf
+        public IReadOnlyList<CType> FunctionArgumentTypes
         {
             get
             {
-                return 4;
+                return m_functionArgumentTypes;
             }
         }
 
-        public CTypeInfo GetPointerType()
+        public override bool Equals(object obj)
         {
-            return new CTypeInfo(ftype, true);
-        }
+            CType type = (obj as CType);
 
-        public bool IsPointer
-        {
-            get
-            {
-                return isPointer;
-            }
-        }
-
-        public CTypeInfo TypePointedTo
-        {
-            get
-            {
-                return new CTypeInfo(ftype, false);
-            }
-        }
-
-        //todo handel arithmetic promotion in operators
-        public CTypeInfo ToSigned()
-        {
-            //donothing
-            return this;
-        }
-
-        public bool CompatableWith(CTypeInfo cTypeInfo)
-        {
-            return true;
-        }
-
-        public bool CanImplicentlyConvertTo(CTypeInfo cTypeInfo)
-        {
-            return true;
-        }
-
-        public bool IsNaturalNumber
-        {
-            get
-            {
-                return true;
-            }
-        }
-
-        public bool IsNumber
-        {
-            get
-            {
-                return true;
-            }
-        }
-
-        public bool HasMembers
-        {
-            get
+            if(type == null)
             {
                 return false;
             }
+
+            bool equ = true;
+            equ = equ && TypeClass == type.TypeClass;
+            equ = equ && IsConst == type.IsConst;
+            equ = equ && TypeName.Equals(type.TypeName);
+            equ = equ && ArraySize == type.ArraySize;
+            equ = equ && ContainedType ==  type.ContainedType;
+            equ = equ && Enumerable.SequenceEqual(EnumConstants, type.EnumConstants);
+            equ = equ && Enumerable.SequenceEqual(StructMembers, type.StructMembers);
+            equ = equ && FunctionReturnType == type.FunctionReturnType;
+            equ = equ && Enumerable.SequenceEqual(FunctionArgumentTypes, type.FunctionArgumentTypes);
+            return equ;
         }
 
-        internal bool HasMember(LabelInfo label)
+        public override int GetHashCode()
         {
-            return false;
+            return base.GetHashCode();
         }
 
-        internal int GetMemberOffset(LabelInfo label)
-        {
-            throw new NotSupportedException();
-        }
-
-        internal CTypeInfo GetMemberType(LabelInfo label)
-        {
-            throw new NotSupportedException();
-        }
-
-        public bool IsFunction
-        {
-            get
-            {
-                return false;
-            }
-        }
-
-        internal bool CheckFuncArguments(List<Expression> args)
-        {
-            throw new NotSupportedException();
-        }
-
-        public CTypeInfo ReturnType
-        {
-            get
-            {
-                throw new NotSupportedException();
-            }
-        }
-
-        internal LabelInfo GetMemberByName(string name)
-        {
-            throw new NotSupportedException();
-        }
-
-        public bool IsInteger
-        {
-            get
-            {
-                return true;
-            }
-        }
-
-        public bool IsArithmetic
-        {
-            get
-            {
-                return IsInteger || IsFloating;
-            }
-        }
-
-        public bool IsFloating
-        {
-            get
-            {
-                return false;
-            }
-        }
-
-        internal IReadOnlyList<CTypeInfo> GetArgumentTypes()
-        {
-            throw new NotSupportedException();
-        }
-
-        internal bool IsAssignableFrom(CTypeInfo cTypeInfo)
-        {
-            return true;
-        }
-
-        public bool IsScalar
-        {
-            get
-            {
-                return true;
-            }
-        }
+        private readonly CTypeClass m_typeClass;
+        private readonly bool m_isConst;
+        private readonly string m_typeName;
+        private readonly int m_arraySize;
+        private readonly CType m_containedType;
+        private readonly IReadOnlyList<CVariable> m_enumConstants;
+        private IReadOnlyList<CVariable> m_structMembers;
+        private bool m_structComplete = false;
+        private readonly CType m_functionReturnType;
+        private readonly IReadOnlyList<CType> m_functionArgumentTypes;
     }
 }

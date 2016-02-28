@@ -268,7 +268,7 @@ namespace Atlas.AtlasCC
             if (context.typeName() != null)
             {
                 //'(' typeName ')' castExpression
-                CTypeInfo castToType = CTypeFromName(context.typeName().GetText());
+                CType castToType = CTypeFromName(context.typeName().GetText());
                 SafeCall(context, () => m_codeGen.EmitCastExpresion(castToType));
             }
         }
@@ -332,7 +332,7 @@ namespace Atlas.AtlasCC
                 else
                 {
                     //'sizeof' '(' typeName ')'
-                    CTypeInfo type = CTypeFromName(context.typeName().GetText());
+                    CType type = CTypeFromName(context.typeName().GetText());
                     SafeCall(context, () => m_codeGen.EmitSizeOfType(type));
                 }
             }
@@ -369,7 +369,7 @@ namespace Atlas.AtlasCC
 
                 int operationStringSize = contextStringSize - (objStringLength + idStringLength);
 
-                LabelInfo label = LabelInfoFromName(context.Identifier().GetText(), m_codeGen.CurrentExpresion.Type);
+                CVariable label = MemberFromName(context.Identifier().GetText(), m_codeGen.CurrentExpresion.Type);
 
                 if (label == null)
                 {
@@ -416,7 +416,7 @@ namespace Atlas.AtlasCC
             if (context.Identifier() != null)
             {
                 //Identifier
-                LabelInfo label = LabelInfoFromName(context.Identifier().GetText());
+                CVariable label = VariableFromName(context.Identifier().GetText());
 
                 if (label == null)
                 {

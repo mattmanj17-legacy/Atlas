@@ -9,6 +9,7 @@ namespace Atlas.AtlasCC.Emitters
 {
     public class OpCodeEmitter : IEmitter
     {
+        //fix it so i don thave to use this hack of passing a string
         public OpCodeEmitter(OpCode code, string arg = "")
         {
             m_code = code;

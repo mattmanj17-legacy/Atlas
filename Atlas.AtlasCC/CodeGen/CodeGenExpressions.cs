@@ -212,9 +212,10 @@ namespace Atlas.AtlasCC
                     6) if one is a pointer to void, the result is a pointer to void with combined cvr-qualifiers
              */
 
-            Expression condition = MakeExpressionRValue(PopExpression());
-            Expression exprt = MakeExpressionRValue(PopExpression());
+
             Expression exprf = MakeExpressionRValue(PopExpression());
+            Expression exprt = MakeExpressionRValue(PopExpression());
+            Expression condition = MakeExpressionRValue(PopExpression());
 
             if(!condition.Type.IsScalar)
             {
@@ -443,7 +444,7 @@ namespace Atlas.AtlasCC
         public void EmitLessThanOrEqualOperation()
         {
             Expression rhs = MakeExpressionRValue(PopExpression());
-            rhs.Add(new OpCodeEmitter(OpCode.PUSHW, "1"));
+            rhs.Add(new OpCodeEmitter(OpCode.PUSHW, "1")); //todo remember this will break if we ever go ti floats
             rhs.Add(new OpCodeEmitter(OpCode.ADD));
             PushExpression(rhs);
             EmitLessThanOperation();
@@ -534,13 +535,17 @@ namespace Atlas.AtlasCC
                 {
                     rhs.Add(new OpCodeEmitter(OpCode.PUSHW, lhs.Type.TypePointedTo.SizeOf.ToString()));
                     rhs.Add(new OpCodeEmitter(OpCode.MUL));
-                    rhs = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
+                    Expression temp = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
+                    temp.Add(rhs);
+                    rhs = temp;
                 }
                 else if (!lhs.Type.IsPointer && rhs.Type.IsPointer)
                 {
                     lhs.Add(new OpCodeEmitter(OpCode.PUSHW, rhs.Type.TypePointedTo.SizeOf.ToString()));
                     lhs.Add(new OpCodeEmitter(OpCode.MUL));
-                    lhs = new Expression(rhs.Type, ValueCatagory.RValue, 0, false);
+                    Expression temp = new Expression(rhs.Type, ValueCatagory.RValue, 0, false);
+                    temp.Add(lhs);
+                    lhs = temp;
                 }
 
                 Expression result = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
@@ -676,7 +681,6 @@ namespace Atlas.AtlasCC
                 //todo handle pointer to const
                 result = new Expression(rhs.Type.TypePointedTo, ValueCatagory.LValue, 0, false);
                 result.Add(rhs);
-                result.Add(new OpCodeEmitter(OpCode.LW));
             }
 
             PushExpression(result);
@@ -999,8 +1003,10 @@ namespace Atlas.AtlasCC
 
         public void EmitIdentifierReference(LabelInfo label)
         {
+            bool isFunctionPointer = label.Type.IsPointer && label.Type.TypePointedTo.IsFunction;
+            
             //TODO constant labels
-            Expression result = new Expression(label.Type, ValueCatagory.LValue, 0, false);
+            Expression result = new Expression(label.Type, isFunctionPointer ? ValueCatagory.RValue : ValueCatagory.LValue, 0, false);
 
             if (label.IsMember)
             {
@@ -1057,7 +1063,7 @@ namespace Atlas.AtlasCC
 
             if (exp.valueCatagory != ValueCatagory.RValue)
             {
-                converted = new Expression(exp.Type, exp.valueCatagory, exp.ConstantValue, exp.IsConstant);
+                converted = new Expression(exp.Type, ValueCatagory.RValue, exp.ConstantValue, exp.IsConstant);
                 converted.Add(exp);
                 converted.Add(new OpCodeEmitter(OpCode.LW));
                 return converted;

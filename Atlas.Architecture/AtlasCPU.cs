@@ -28,11 +28,10 @@ namespace Atlas.Architecture
         SUB,
         NEG,
         LESS,
+        EQU,
         MUL,
         SLL,
         SRL,
-        SRA,
-        ROR,
         NOT,
         AND,
         OR,
@@ -58,8 +57,7 @@ namespace Atlas.Architecture
         BEGINARGS,
         CALL,
         RETV,
-        RET,
-        EQU
+        RET
     }
 
     public enum MemSize
@@ -197,8 +195,6 @@ namespace Atlas.Architecture
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
-                case OpCode.SRA:
-                case OpCode.ROR:
                 case OpCode.AND:
                 case OpCode.OR:
                 case OpCode.XOR:
@@ -241,8 +237,6 @@ namespace Atlas.Architecture
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
-                case OpCode.SRA:
-                case OpCode.ROR:
                 case OpCode.NOT:
                 case OpCode.AND:
                 case OpCode.OR:
@@ -293,8 +287,6 @@ namespace Atlas.Architecture
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
-                case OpCode.SRA:
-                case OpCode.ROR:
                 case OpCode.NOT:
                 case OpCode.AND:
                 case OpCode.OR:
@@ -362,8 +354,6 @@ namespace Atlas.Architecture
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
-                case OpCode.SRA:
-                case OpCode.ROR:
                 case OpCode.NOT:
                 case OpCode.AND:
                 case OpCode.OR:
@@ -433,8 +423,6 @@ namespace Atlas.Architecture
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
-                case OpCode.SRA:
-                case OpCode.ROR:
                 case OpCode.NOT:
                 case OpCode.AND:
                 case OpCode.OR:
@@ -502,8 +490,6 @@ namespace Atlas.Architecture
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
-                case OpCode.SRA:
-                case OpCode.ROR:
                 case OpCode.AND:
                 case OpCode.OR:
                 case OpCode.XOR:
@@ -627,7 +613,7 @@ namespace Atlas.Architecture
                 case OpCode.NEG:
                     return -stackArgB;
                 case OpCode.LESS:
-                    return DoLESS(stackArgA, stackArgB);
+                    return stackArgA < stackArgB ? 1 : 0;
                 case OpCode.EQU:
                     return stackArgA == stackArgB ? 1 : 0;
                 case OpCode.MUL: //MUL treats operands as unsigned
@@ -636,10 +622,6 @@ namespace Atlas.Architecture
                     return stackArgA << stackArgB;
                 case OpCode.SRL: //SRL treats operands as unsigned
                     return (int)((uint)stackArgA >> stackArgB);
-                case OpCode.SRA:
-                    return (Int32)stackArgA >> stackArgB; //TODO BUG this is broken right now, c# weirdness
-                case OpCode.ROR:
-                    return DoROR(stackArgA, stackArgB); //TODO BUG this is broken right now, c# weirdness
                 case OpCode.NOT:
                     return ~stackArgB;
                 case OpCode.AND:
@@ -652,27 +634,7 @@ namespace Atlas.Architecture
                     return 0;
             }
         }
-
-        // implimentation of ROR
-        //TODO test this, i think it might be broken
-        private int DoROR(int val, int rorAmount)
-        {
-            int mask = (8 * sizeof(int) - 1);
-
-            rorAmount &= mask;
-            return (val >> rorAmount) | (val >> ((-rorAmount) & mask));
-        }
-
-        //return all zero for false, all 1 for true (this lets them be flipped from one to the other with the NOT opcode)
-        private int DoLESS(int a, int b)
-        {
-            return a < b ? unchecked((int)UInt32.MaxValue) : 0;
-        }
-
         
-
-        
-
         //Address of the current instruction
         protected int ProgramCounter;
 

@@ -50,8 +50,6 @@ instructionCode
 	| MUL
 	| SLL
 	| SRL
-	| SRA
-	| ROR
 	| NOT
 	| AND
 	| OR
@@ -67,7 +65,7 @@ instructionCode
 	| JMP
 	| JIF
 	| PUSHBP
-	| PUSHSP
+	| PUSHSP //yuk
 	| POPB
 	| POPH
 	| POPW
@@ -102,8 +100,6 @@ EQU:'EQU';
 MUL :'MUL' ;
 SLL:'SLL' ;
 SRL:'SRL' ;
-SRA:'SRA' ;
-ROR :'ROR' ;
 NOT:'NOT' ;
 AND:'AND' ;
 OR:'OR' ;

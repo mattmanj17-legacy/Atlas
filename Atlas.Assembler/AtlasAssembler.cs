@@ -84,14 +84,14 @@ namespace Atlas.Assembler
         {
             if (m_currentPass == AssemblerSemanticAnalysisPass.RecordLabels)
             {
-                m_fileSize++;
+                //m_fileSize++;
                 RecordLabel(context.ID().Symbol);
 
                 //Do not add to file size, decause labels do not appeare in the final binary
             }
             if(m_currentPass == AssemblerSemanticAnalysisPass.CodeGen)
             {
-                EmitOpCode(OpCode.NOP);
+                //EmitOpCode(OpCode.NOP);
             }
         }
         

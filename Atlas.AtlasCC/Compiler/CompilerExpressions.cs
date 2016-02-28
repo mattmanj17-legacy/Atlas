@@ -355,7 +355,7 @@ namespace Atlas.AtlasCC
                 //postfixExpression '[' expression ']'
                 SafeCall(context, m_codeGen.EmitArrayAccess);
             }
-            else if (context.GetText().EndsWith(")"))
+            else if (context.postfixExpression() != null && context.GetText().EndsWith(")"))
             {
                 //postfixExpression '(' argumentExpressionList? ')'
                 int numArgs = GetArgumentListLength(context.argumentExpressionList());

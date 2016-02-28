@@ -11,7 +11,8 @@ namespace Atlas.AtlasCC
     {   
         CTypeInfo CTypeFromName(string name)
         {
-            throw new NotImplementedException();
+            //hack, assuming all types are INT
+            return CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32);
         }
 
         private LabelInfo LabelInfoFromName(string name, CTypeInfo type)

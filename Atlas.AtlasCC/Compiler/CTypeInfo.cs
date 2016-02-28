@@ -28,7 +28,7 @@ namespace Atlas.AtlasCC
         
         public override string ToString()
         {
-            throw new NotImplementedException();
+            return "int";
         }
 
         public int SizeOf
@@ -108,12 +108,12 @@ namespace Atlas.AtlasCC
 
         internal int GetMemberOffset(LabelInfo label)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         internal CTypeInfo GetMemberType(LabelInfo label)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public bool IsFunction
@@ -126,27 +126,27 @@ namespace Atlas.AtlasCC
 
         internal bool CheckFuncArguments(List<Expression> args)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public CTypeInfo ReturnType
         {
             get
             {
-                throw new NotImplementedException();
+                throw new NotSupportedException();
             }
         }
 
         internal LabelInfo GetMemberByName(string name)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public bool IsInteger
         {
             get
             {
-                throw new NotImplementedException();
+                return true;
             }
         }
 
@@ -154,7 +154,7 @@ namespace Atlas.AtlasCC
         {
             get
             {
-                throw new NotImplementedException();
+                return IsInteger || IsFloating;
             }
         }
 
@@ -162,18 +162,26 @@ namespace Atlas.AtlasCC
         {
             get
             {
-                throw new NotImplementedException();
+                return false;
             }
         }
 
         internal IReadOnlyList<CTypeInfo> GetArgumentTypes()
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         internal bool IsAssignableFrom(CTypeInfo cTypeInfo)
         {
-            throw new NotImplementedException();
+            return true;
+        }
+
+        public bool IsScalar
+        {
+            get
+            {
+                return true;
+            }
         }
     }
 }

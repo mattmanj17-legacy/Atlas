@@ -11,7 +11,7 @@ namespace Atlas.AtlasCC
     {
         public string Emit()
         {
-            throw new NotImplementedException();
+            return Emmiters.Reverse().Select(Emiter => Emiter.Emit()).Aggregate((a,b) => a + b);
         }
         
         private void CodeGenError(string s)

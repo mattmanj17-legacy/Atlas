@@ -46,6 +46,7 @@ instructionCode
 	| SUB
 	| NEG
 	| LESS
+	| EQU
 	| MUL
 	| SLL
 	| SRL
@@ -97,6 +98,7 @@ ADD:'ADD';
 SUB:'SUB';
 NEG:'NEG'; 
 LESS :'LESS' ;
+EQU:'EQU';
 MUL :'MUL' ;
 SLL:'SLL' ;
 SRL:'SRL' ;

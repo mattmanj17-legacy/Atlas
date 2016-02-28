@@ -32,87 +32,346 @@ namespace Atlas.AtlasCC
                 The comma operator returns an rvalue
              */
 
-            throw new NotImplementedException();
+            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression lhs = PopExpression();
+
+            Expression result = new Expression(rhs.Type, ValueCatagory.RValue, 0, false);
+            result.Add(lhs);
+            result.Add(new OpCodeEmitter(OpCode.POPW));
+            result.Add(rhs);
+
+            PushExpression(result);
         }
 
         public void EmitAssinmentOperation()
         {
-            throw new NotImplementedException();
+            /*
+                The simple assignment operator expressions have the form
+                    lhs = rhs		
+                where
+                    lhs	-	modifiable lvalue expression of any complete object type
+                    rhs	-	expression of any type implicitly convertible to lhs or compatible with lhs
+                Assignment performs implicit conversion from the value of rhs to the type of rhs and then replaces the value in the object designated by lhs with the converted value of rhs.
+                Assignment also returns the same value as what was stored in lhs (so that expressions such as a = b = c are possible). The value category of the assignment operator is non-lvalue (so that expressions such as (a=b)=c are invalid).
+                rhs and lhs must satisfy one of the following:
+                    both lhs and rhs have compatible struct or union type, or..
+                    rhs must be implicitly convertible to lhs, which implies
+                    both lhs and rhs have arithmetic types, in which case lhs may be volatile-qualified or atomic
+                    both lhs and rhs have pointer to compatible (ignoring qualifiers) types, or one of the pointers is a pointer to void, and the conversion would not add qualifiers to the pointed-to type. lhs may be volatile or restrict-qualified or atomic.
+                    lhs is a pointer (possibly qualified or atomic) and rhs is a null pointer constant such as NULL
+                    lhs has type _Bool (possibly qualified or atomic) and rhs is a pointer
+                    Notes
+                    If rhs and lhs overlap in memory (e.g. they are members of the same union), the behavior is undefined unless the overlap is exact and the types are compatible.
+                Although arrays are not assignable, an array wrapped in a struct is assignable to another object of the same (or compatible) struct type.
+                assignment operators are rvalue expressions
+             */
+
+            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression lhs = PopExpression();
+
+            if(lhs.valueCatagory != ValueCatagory.LValue)
+            {
+                CodeGenError("Cannot assign to a non lvalue");
+            }
+
+            if (!lhs.Type.IsAssignableFrom(rhs.Type))
+            {
+                CodeGenError("cannot assign value of type " + rhs.Type + " to value of type " + lhs.Type);
+            }
+
+            Expression result = new Expression(rhs.Type,ValueCatagory.RValue,0,false);
+
+            result.Add(lhs);
+            result.Add(DuplicatePreviousExpresionValue());
+            result.Add(rhs.CastTo(lhs.Type));
+            result.Add(new OpCodeEmitter(OpCode.SW));
+            result.Add(new OpCodeEmitter(OpCode.LW));
+
+            PushExpression(result);
+        }
+
+        private void EmitCompoundAssignmentHeader()
+        {
+            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression lhs = PopExpression();
+
+            Expression lhsValue = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
+            lhsValue.Add(lhs);
+            lhs.Add(new OpCodeEmitter(OpCode.LW));
+
+            PushExpression(lhs);
+            PushExpression(lhsValue);
+            PushExpression(rhs);
         }
 
         public void EmitCompoundAssinmentMultiply()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitMultiplyOperation();
             EmitAssinmentOperation();
         }
-
+        
         public void EmitCompoundAssinmentDivide()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitDivideOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentMod()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitModOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentAdd()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitAddOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentSub()
         {
+            EmitCompoundAssignmentHeader();
+
             EmitSubOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentShiftLeft()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitLeftShiftOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentShiftRight()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitRightShiftOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentAnd()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitAndOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentXor()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitXorOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCompoundAssinmentOr()
         {
+            EmitCompoundAssignmentHeader();
+            
             EmitOrOperation();
             EmitAssinmentOperation();
         }
 
         public void EmitCoditionalExpresion()
         {
-            throw new NotImplementedException();
+            /*
+                The conditional operator expression has the form
+                    condition ? expression-true : expression-false		
+                where
+                    condition	-	an expression of scalar type
+                    expression-true	-	the expression that will be evaluated if condition compares unequal to zero
+                    expression-false	-	the expression that will be evaluated if condition compares equal to zero
+                Only the following expressions are allowed as expression-true and expression-false
+                    two expressions of any arithmetic type
+                    two expressions of the same struct or union type
+                    two expressions of void type
+                    two expressions of pointer type, pointing to types that are compatible, ignoring cvr-qualifiers
+                    one expression is a pointer and the other is the null pointer constant (such as NULL)
+                    one expression is a pointer to object and the other is a pointer to void (possibly qualified)
+                
+                1) First, evaluates condition. There is a sequence point after this evaluation.
+                2) If the result of condition compares unequal to zero, executes expression-true, otherwise executes exception-false
+                3) Performs a conversion from the result of the evaluation to the common type, defined as follows:
+                    1) if the expressions have arithmetic type, the common type is the type after usual arithmetic conversions
+                    2) if the expressions have struct/union type, the common type is that struct/union type
+                    3) if the expressions are both void, the entire conditional operator expression is a void expression
+                    4) if one is a pointer and the other is a null pointer constant, the type is the type of that pointer
+                    5) if both are pointers, the result is the pointer to the type that combines cvr-qualifiers of both pointed-to types (that is, if one is const int* and the other is volatile int*, the result is const volatile int*), and if the types were different, the pointed-to type is the composite type.
+                    6) if one is a pointer to void, the result is a pointer to void with combined cvr-qualifiers
+             */
+
+            Expression condition = MakeExpressionRValue(PopExpression());
+            Expression exprt = MakeExpressionRValue(PopExpression());
+            Expression exprf = MakeExpressionRValue(PopExpression());
+
+            if(!condition.Type.IsScalar)
+            {
+                CodeGenError("codition in a conditional expresion must be a scalar type");
+            }
+
+            if(!exprt.Type.CompatableWith(exprf.Type))
+            {
+                CodeGenError("values in conditional expressions must be of compatable types");
+            }
+
+            //(condition)
+            //LNOT
+            //PUSH FALSECASE
+            //JIF
+            //(exprt)
+            //pushw ENDCONDITION
+            //JMP
+            //FALSECASE:
+            //(exprf)
+            //ENDCONDITION:
+            
+            Expression result = new Expression(exprt.Type, ValueCatagory.RValue, 0, false);
+
+            //(lhs)
+            result.Add(condition);
+
+            //lnot
+            PushExpression(result);
+            EmitLogicalNotOperation();
+            result = PopExpression();
+
+            //PUSH FALSECASE
+            string falseCase = AutoGenerateLabel("conditionalFalseCase");
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, falseCase));
+
+            //JIF
+            result.Add(new OpCodeEmitter(OpCode.JIF));
+
+            //(exprt)
+            result.Add(exprt);
+            //pushw ENDCONDITION
+            string end = AutoGenerateLabel("endConditional");
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, end));
+            //JMP
+            result.Add(new OpCodeEmitter(OpCode.JMP));
+            //FALSECASE:
+            result.Add(new LabelEmitter(falseCase));
+            //(exprf)
+            result.Add(exprf);
+            //ENDCONDITION:
+            result.Add(new LabelEmitter(end));
+
+            PushExpression(result);
         }
 
         public void EmitLogicalOr()
         {
-            throw new NotImplementedException();
+            /*
+                The logical AND expression has the form
+                    lhs || rhs		
+                where
+                    lhs	-	an expression of any scalar type
+                    rhs	-	an expression of any scalar type, which is only evaluated if lhs compares equal to ​0​
+                The logical-AND operator has type int and the value 1 if either lhs and rhs compare unequal to zero. It has the value ​0​ otherwise (if both compare equal to zero).
+                If the result of lhs does not compare equal to zero, then rhs is not evaluated at all (so-called short-cirquit evaluation)
+             */
+
+            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression lhs = MakeExpressionRValue(PopExpression());
+
+            if (!lhs.Type.IsScalar || !rhs.Type.IsScalar)
+            {
+                CodeGenError("operands to logical operation must be scalar");
+            }
+
+            //(lhs)
+            //duptop
+            //push end
+            //jif
+            //pop
+            //(rhs)
+            //end:
+            Expression result = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), ValueCatagory.RValue, 0, false);
+
+            //(lhs)
+            result.Add(lhs);
+            //duptop
+            result.Add(DuplicatePreviousExpresionValue());
+            //push end
+            string label = AutoGenerateLabel("LogicalOrEnd");
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, label));
+            //jif
+            result.Add(new OpCodeEmitter(OpCode.JIF));
+            //pop
+            result.Add(new OpCodeEmitter(OpCode.POPW));
+            //(rhs)
+            result.Add(rhs);
+            //end:
+            result.Add(new LabelEmitter(label));
+
+            PushExpression(result);
         }
 
         public void EmitLogicalAnd()
         {
-            throw new NotImplementedException();
+            /*
+                The logical AND expression has the form
+                    lhs && rhs		
+                where
+                    lhs	-	an expression of any scalar type
+                    rhs	-	an expression of any scalar type, which is only evaluated if lhs does not compare equal to ​0​
+                The logical-AND operator has type int and the value 1 if both lhs and rhs compare unequal to zero. It has the value ​0​ otherwise (if either lhs or rhs or both compare equal to zero).
+                If the result of lhs compares equal to zero, then rhs is not evaluated at all (so-called short-cirquit evaluation)
+             */
+
+            Expression rhs = MakeExpressionRValue(PopExpression());
+            Expression lhs = MakeExpressionRValue(PopExpression());
+
+            if(!lhs.Type.IsScalar || !rhs.Type.IsScalar)
+            {
+                CodeGenError("operands to logical operation must be scalar");
+            }
+
+            //(lhs)
+            //duptop
+            //lnot
+            //push end
+            //jif
+            //pop
+            //(rhs)
+            //end:
+            Expression result = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), ValueCatagory.RValue, 0, false);
+
+            //(lhs)
+            result.Add(lhs);
+            //duptop
+            result.Add(DuplicatePreviousExpresionValue());
+
+            //lnot
+            PushExpression(result);
+            EmitLogicalNotOperation();
+            result = PopExpression();
+
+            //push end
+            string label = AutoGenerateLabel("LogicalAndEnd");
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, label));
+            //jif
+            result.Add(new OpCodeEmitter(OpCode.JIF));
+            //pop
+            result.Add(new OpCodeEmitter(OpCode.POPW));
+            //(rhs)
+            result.Add(rhs);
+            //end:
+            result.Add(new LabelEmitter(label));
+
+            PushExpression(result);
         }
 
         public void EmitOrOperation()
@@ -138,7 +397,28 @@ namespace Atlas.AtlasCC
 
         public void EmitAreEqualOperation()
         {
-            throw new NotImplementedException();
+            /*
+                The equality operator expressions have the form
+                    lhs == rhs	(1)	
+                    lhs != rhs	(2)	
+                1) equal-to expression
+                2) not equal to expression
+                where
+                    lhs, rhs	-	
+                        expressions that
+                        both have any arithmetic types (including complex and imaginary)
+                        both are pointers to objects or functions of compatible types, ignoring qualifiers of the pointed-to types
+                        one is a pointer to object and the other is a pointer to (possibly qualified) void
+                        one is a pointer to object or function and the other is a null pointer constant such as NULL
+
+                The type of any equality operator expression is int, and its value (which is not an lvalue) is 1 when the specified relationship holds true and ​0​ when the specified relationship does not hold.
+                if both operands have arithmetic types, usual arithmetic conversions are performed and the resulting values are compared in the usual mathematical sense
+                
+                two pointers compare equal if they point to the same address
+             */
+            Expression result = HandleArithmeticOperands(ArithmeticPointerHandlingType.Cast);
+            result.Add(new OpCodeEmitter(OpCode.EQU));
+            PushExpression(result);
         }
 
         public void EmitNotEqualOperation()
@@ -200,52 +480,98 @@ namespace Atlas.AtlasCC
 
         public void EmitAddOperation()
         {
-            throw new NotImplementedException();
+            Expression result = HandleArithmeticOperands(ArithmeticPointerHandlingType.PointerArithmatic);
+            result.Add(new OpCodeEmitter(OpCode.ADD));
+            PushExpression(result);
         }
 
         public void EmitSubOperation()
         {
-            throw new NotImplementedException();
+            Expression result = HandleArithmeticOperands(ArithmeticPointerHandlingType.PointerArithmatic);
+            result.Add(new OpCodeEmitter(OpCode.SUB));
+            PushExpression(result);
         }
 
         public void EmitMultiplyOperation()
         {
             Expression result = HandleArithmeticOperands();
             result.Add(new OpCodeEmitter(OpCode.MUL));
+            PushExpression(result);
         }
 
         public void EmitDivideOperation()
         {
             Expression result = HandleArithmeticOperands();
-            //
-            throw new NotImplementedException();
+            throw new NotSupportedException("Atlas dosnt have hardware division");
         }
 
         public void EmitModOperation()
         {
             Expression result = HandleArithmeticOperands();
-            //
-            throw new NotImplementedException();
+            throw new NotSupportedException("Atlas dosnt have hardware division");
+        }
+        
+        private enum ArithmeticPointerHandlingType
+        {
+            Reject,
+            Cast,
+            PointerArithmatic
         }
 
-        private Expression HandleArithmeticOperands()
+        private Expression HandleArithmeticOperands(ArithmeticPointerHandlingType pointerHandlingType = ArithmeticPointerHandlingType.Reject)
         {
             Expression rhs = MakeExpressionRValue(PopExpression());
             Expression lhs = MakeExpressionRValue(PopExpression());
 
-            if (!lhs.Type.IsInteger || !rhs.Type.IsInteger)
+            if (pointerHandlingType == ArithmeticPointerHandlingType.PointerArithmatic && (lhs.Type.IsPointer || rhs.Type.IsPointer))
             {
-                CodeGenError("Arithmetic operations require integer operands");
+                if ((!lhs.Type.IsInteger && !lhs.Type.IsPointer) || (!lhs.Type.IsInteger && !lhs.Type.IsPointer))
+                {
+                    CodeGenError("invalid types for pointer arithmatic");
+                }
+                
+                if (lhs.Type.IsPointer && !rhs.Type.IsPointer)
+                {
+                    rhs.Add(new OpCodeEmitter(OpCode.PUSHW, lhs.Type.TypePointedTo.SizeOf.ToString()));
+                    rhs.Add(new OpCodeEmitter(OpCode.MUL));
+                    rhs = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
+                }
+                else if (!lhs.Type.IsPointer && rhs.Type.IsPointer)
+                {
+                    lhs.Add(new OpCodeEmitter(OpCode.PUSHW, rhs.Type.TypePointedTo.SizeOf.ToString()));
+                    lhs.Add(new OpCodeEmitter(OpCode.MUL));
+                    lhs = new Expression(rhs.Type, ValueCatagory.RValue, 0, false);
+                }
+
+                Expression result = new Expression(lhs.Type, ValueCatagory.RValue, 0, false);
+
+                result.Add(lhs);
+                result.Add(rhs);
+                return result;
             }
+            else
+            {
+                if (pointerHandlingType == ArithmeticPointerHandlingType.Cast)
+                {
+                    if (rhs.Type.IsPointer) rhs = rhs.CastTo(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32));
+                    if (lhs.Type.IsPointer) lhs = lhs.CastTo(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32));
+                }
 
-            rhs = rhs.PromoteInteger();
-            lhs = lhs.PromoteInteger();
 
-            Expression result = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), ValueCatagory.RValue, lhs.ConstantValue * rhs.ConstantValue, lhs.IsConstant && rhs.IsConstant);
+                if (!lhs.Type.IsInteger || !rhs.Type.IsInteger)
+                {
+                    CodeGenError("Arithmetic operations require integer operands");
+                }
 
-            result.Add(lhs);
-            result.Add(rhs);
-            return result;
+                rhs = rhs.PromoteInteger();
+                lhs = lhs.PromoteInteger();
+
+                Expression result = new Expression(CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32), ValueCatagory.RValue, 0, false);
+
+                result.Add(lhs);
+                result.Add(rhs);
+                return result;
+            }
         }
 
         public void EmitCastExpresion(CTypeInfo type)
@@ -416,7 +742,7 @@ namespace Atlas.AtlasCC
             result.Add(rhs);
             result.Add(new OpCodeEmitter(OpCode.NOT));
 
-            
+            PushExpression(result);
         }
 
         public void EmitLogicalNotOperation()
@@ -509,6 +835,7 @@ namespace Atlas.AtlasCC
                 result.Add(new OpCodeEmitter(OpCode.LW));
             }
 
+            PushExpression(result);
         }
 
         public void EmitMemberAccess(LabelInfo label)
@@ -667,7 +994,7 @@ namespace Atlas.AtlasCC
             // Moreover, overlapping string literals or string literals that are substrings of other string literals may be combined.
             // example : "def" == 3+"abcdef"; may be 1 or 0, implementation-defined
 
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public void EmitIdentifierReference(LabelInfo label)
@@ -718,7 +1045,10 @@ namespace Atlas.AtlasCC
 
         private void ParseAsConstant(string literal, out int value, out CTypeInfo type)
         {
-            throw new NotImplementedException();
+            //TODO FIX
+            //hack, assuming all lits are ints     
+            value = int.Parse(literal);
+            type = CTypeInfo.FromFundamentalType(FundamentalType.unsignedInt32);
         }
 
         public Expression MakeExpressionRValue(Expression exp)

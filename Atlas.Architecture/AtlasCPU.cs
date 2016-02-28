@@ -58,7 +58,8 @@ namespace Atlas.Architecture
         BEGINARGS,
         CALL,
         RETV,
-        RET
+        RET,
+        EQU
     }
 
     public enum MemSize
@@ -192,6 +193,7 @@ namespace Atlas.Architecture
                 case OpCode.ADD:
                 case OpCode.SUB:
                 case OpCode.LESS:
+                case OpCode.EQU:
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
@@ -235,6 +237,7 @@ namespace Atlas.Architecture
                 case OpCode.SUB:
                 case OpCode.NEG:
                 case OpCode.LESS:
+                case OpCode.EQU:
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
@@ -286,6 +289,7 @@ namespace Atlas.Architecture
                 case OpCode.SUB:
                 case OpCode.NEG:
                 case OpCode.LESS:
+                case OpCode.EQU:
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
@@ -354,6 +358,7 @@ namespace Atlas.Architecture
                 case OpCode.SUB:
                 case OpCode.NEG:
                 case OpCode.LESS:
+                case OpCode.EQU:
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
@@ -424,6 +429,7 @@ namespace Atlas.Architecture
                 case OpCode.SUB:
                 case OpCode.NEG:
                 case OpCode.LESS:
+                case OpCode.EQU:
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
@@ -492,6 +498,7 @@ namespace Atlas.Architecture
                 case OpCode.ADD:
                 case OpCode.SUB:
                 case OpCode.LESS:
+                case OpCode.EQU:
                 case OpCode.MUL:
                 case OpCode.SLL:
                 case OpCode.SRL:
@@ -621,6 +628,8 @@ namespace Atlas.Architecture
                     return -stackArgB;
                 case OpCode.LESS:
                     return DoLESS(stackArgA, stackArgB);
+                case OpCode.EQU:
+                    return stackArgA == stackArgB ? 1 : 0;
                 case OpCode.MUL: //MUL treats operands as unsigned
                     return (int)((uint)stackArgA * (uint)stackArgB);
                 case OpCode.SLL:

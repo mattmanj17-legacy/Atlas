@@ -12,7 +12,7 @@ namespace Atlas.AtlasCC.Emitters
         public OpCodeEmitter(OpCode code, string arg = "")
         {
             m_code = code;
-            m_arg = arg;
+            m_arg = arg == "" ? "" : " " + arg;
         }
 
         private readonly OpCode m_code;

@@ -29,22 +29,26 @@ namespace Atlas.AtlasCC
 
         internal Expression PromoteInteger()
         {
-            throw new NotImplementedException();
+            //hack, asuming all same type
+            return this;
         }
 
         internal bool CanCastTo(CTypeInfo type)
         {
-            throw new NotImplementedException();
+            //hack, asuming all same type
+            return true;
         }
 
         internal Expression CastTo(CTypeInfo type)
         {
-            throw new NotImplementedException();
+            //hack, asuming all same type
+            return this;
         }
 
         internal Expression InvertSign()
         {
-            throw new NotImplementedException();
+            //hack, asuming all same type
+            return this;
         }
     }
 }

@@ -66,6 +66,7 @@
     <Compile Include="Compiler\CompilerCore.cs" />
     <Compile Include="Emitters\IEmitter.cs" />
     <Compile Include="Compiler\LabelInfo.cs" />
+    <Compile Include="Emitters\LabelEmitter.cs" />
     <Compile Include="Emitters\OpcodeEmitter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

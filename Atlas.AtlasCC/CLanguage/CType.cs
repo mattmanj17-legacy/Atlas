@@ -198,6 +198,11 @@ namespace Atlas.AtlasCC
     
     public class CType
     {
+        public static CType PointerTo(CType cType)
+        {
+            throw new NotImplementedException();
+        }
+        
         public static CTypeGroups GetTypeGroup(CTypeClass classification)
         {
             switch(classification)
@@ -402,7 +407,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public void SpecifyStructMembers(IReadOnlyList<CVariable> members)
+        public void SpecifyStructMembers(IReadOnlyList<CIdentifier> members)
         {
             m_structMembers = members;
             m_structComplete = true;
@@ -411,6 +416,46 @@ namespace Atlas.AtlasCC
         public bool InTypeGroup(CTypeGroups group)
         {
             return GetTypeGroup(m_typeClass).HasFlag(group);
+        }
+
+        public bool IsPointer
+        {
+            get
+            {
+                return TypeClass == CTypeClass.CPointer;
+            }
+        }
+
+        public bool IsArray
+        {
+            get
+            {
+                return TypeClass == CTypeClass.CArray;
+            }
+        }
+
+        public bool IsFunctionPointer
+        {
+            get
+            {
+                return TypeClass == CTypeClass.CPointer && m_containedType.TypeClass == CTypeClass.CFunction;
+            }
+        }
+
+        public bool IsStruct
+        {
+            get
+            {
+                return TypeClass == CTypeClass.CStruct;
+            }
+        }
+
+        public bool IsInteger
+        {
+            get
+            {
+                return InTypeGroup(CTypeGroups.CInt);
+            }
         }
 
         public CTypeClass TypeClass
@@ -453,7 +498,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public IReadOnlyList<CVariable> EnumConstants
+        public IReadOnlyList<CIdentifier> EnumConstants
         {
             get
             {
@@ -461,7 +506,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public IReadOnlyList<CVariable> StructMembers
+        public IReadOnlyList<CIdentifier> StructMembers
         {
             get
             {
@@ -517,8 +562,8 @@ namespace Atlas.AtlasCC
         private readonly string m_typeName;
         private readonly int m_arraySize;
         private readonly CType m_containedType;
-        private readonly IReadOnlyList<CVariable> m_enumConstants;
-        private IReadOnlyList<CVariable> m_structMembers;
+        private readonly IReadOnlyList<CIdentifier> m_enumConstants;
+        private IReadOnlyList<CIdentifier> m_structMembers;
         private bool m_structComplete = false;
         private readonly CType m_functionReturnType;
         private readonly IReadOnlyList<CType> m_functionArgumentTypes;

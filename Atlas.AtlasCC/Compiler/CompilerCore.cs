@@ -21,8 +21,6 @@ namespace Atlas.AtlasCC
         {
             m_outStream = Console.Out;
             m_codeGen = codeGen;
-
-            InitDeclarations();
         }
 
         //point the assembler output (errors and warnings) to a custom locations
@@ -30,8 +28,6 @@ namespace Atlas.AtlasCC
         {
             m_outStream = outStream;
             m_codeGen = codeGen;
-
-            InitDeclarations();
         }
         
         public string Compile(ICharStream cSource)
@@ -48,9 +44,7 @@ namespace Atlas.AtlasCC
                 CParser.CompilationUnitContext compilationUnit = parser.compilationUnit();
                 ParseTreeWalker walker = new ParseTreeWalker();
 
-                CreateVariable("x", new CVariable(CType.FromTypeClass(CTypeClass.CInt),"x"));
-                CreateVariable("true", new CVariable(CType.FromTypeClass(CTypeClass.CBool), "true"));
-                CreateVariable("false", new CVariable(CType.FromTypeClass(CTypeClass.CBool), "false"));
+                
 
                 walker.Walk(this, compilationUnit);
 

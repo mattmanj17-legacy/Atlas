@@ -5,33 +5,17 @@ using System.Text;
 
 namespace Atlas.AtlasCC
 {
-    public class CVariable
+    //TODO this is ugly and messy. fix it
+    public class CIdentifier
     {
-        public CVariable(CType type, int offset, CType parentType)
+        public static CIdentifier Global(CType cType, string p)
         {
-            this.type = type;
-            this.offset = offset;
-            ismember = true;
-            islocal = false;
-            name = "";
+            throw new NotImplementedException();
         }
-
-        public CVariable(CType type, int offset)
+        
+        public CIdentifier()
         {
-            this.type = type;
-            this.offset = offset;
-            ismember = false;
-            islocal = true;
-            name = "";
-        }
-
-        public CVariable(CType type, string name)
-        {
-            this.type = type;
-            this.name = name;
-            ismember = false;
-            islocal = false;
-            this.name = name;
+            throw new NotImplementedException();
         }
         
         public override string ToString()
@@ -55,11 +39,19 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public int Offset
+        public int StackPointerOffset
         {
             get
             {
                 return offset;
+            }
+        }
+
+        public int StructOffset
+        {
+            get
+            {
+                throw new NotImplementedException();
             }
         }
 

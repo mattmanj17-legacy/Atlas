@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Atlas.AtlasCC.Emitters
+namespace Atlas.AtlasCC
 {
     public class LabelEmitter : IEmitter
     {

@@ -15,8 +15,7 @@ namespace Atlas.VM
     {
         static void Main(string[] args)
         {
-            AtlasCodeGen codeGen = new AtlasCodeGen();
-            AtlasCCompiler compiler = new AtlasCCompiler(codeGen);
+            AtlasCCompilerFrontEnd compiler = new AtlasCCompilerFrontEnd();
 
             string source = File.ReadAllText(args[0]);
 

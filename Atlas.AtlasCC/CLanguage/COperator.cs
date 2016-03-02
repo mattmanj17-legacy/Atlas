@@ -1,6 +1,5 @@
 ﻿using Antlr4.Runtime;
 using Atlas.Architecture;
-using Atlas.AtlasCC.Emitters;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,12 +8,12 @@ using System.Threading.Tasks;
 
 namespace Atlas.AtlasCC
 {
-    public partial class AtlasCodeGen
+    public static class COperator
     {
         //Assignment operators
         //http://en.cppreference.com/w/c/language/operator_assignment
         
-        public void BasicAssignmentOperator()
+        public static void BasicAssignmentOperator()
         {
             /*
                 The simple assignment operator expressions have the form
@@ -46,28 +45,28 @@ namespace Atlas.AtlasCC
             CExpression rhs = PopExpression().ToRValue();
             CExpression lhs = PopExpression();
 
-            if(lhs.IsModifiable)
+            if(!lhs.IsModifiableLValue)
             {
-                CodeGenError("Cannot assign to a non lvalue");
+                throw new CompilerExcepion("Cannot assign to a non  modifiable lvalue");
             }
 
             if (!lhs.CanConvertImplicitlyToType(rhs.Type))
             {
-                CodeGenError("cannot assign value of type " + rhs.Type + " to value of type " + lhs.Type);
+                throw new CompilerExcepion("cannot assign value of type " + rhs.Type + " to value of type " + lhs.Type);
             }
 
             CExpression result = new CExpression(rhs.Type,ValueCatagory.RValue);
 
             result.Add(lhs);
-            result.Add(CopyTopOfStackOperation());
+            result.Add(new OpCodeEmitter(OpCode.COPY));
             result.Add(rhs.ConvertToType(lhs.Type));
-            result.Add(new OpCodeEmitter(OpCode.SW));
-            result.Add(new OpCodeEmitter(OpCode.LW));
+            result.Add(new OpCodeEmitter(lhs.GetStoreOperation()));
+            result.Add(new OpCodeEmitter(lhs.GetLoadOperation()));
 
             PushExpression(result);
         }
 
-        private void CompoundAssignment(Action arithmeticOperator)
+        private static void CompoundAssignment(Action arithmeticOperator)
         {
             CExpression rhs = PopExpression().ToRValue();
             CExpression lhs = PopExpression();
@@ -86,52 +85,52 @@ namespace Atlas.AtlasCC
             BasicAssignmentOperator();
         }
 
-        public void AdditionAssignmentOperator()
+        public static void AdditionAssignmentOperator()
         {
             CompoundAssignment(AdditionOperator);
         }
 
-        public void SubtractionAssignmentOperator()
+        public static void SubtractionAssignmentOperator()
         {
             CompoundAssignment(SubscriptOperator);
         }
 
-        public void MultiplicationAssignmentOperator()
+        public static void MultiplicationAssignmentOperator()
         {
             CompoundAssignment(MultiplicationOperator);
         }
 
-        public void DivisionAssignmentOperator()
+        public static void DivisionAssignmentOperator()
         {
             CompoundAssignment(DivisionOperator);
         }
 
-        public void ModuloAssignmentOperator()
+        public static void ModuloAssignmentOperator()
         {
             CompoundAssignment(ModuloOperator);
         }
 
-        public void BitwiseAndAssignmentOperator()
+        public static void BitwiseAndAssignmentOperator()
         {
             CompoundAssignment(BitwiseAndOperator);
         }
 
-        public void BitwiseOrAssignmentOperator()
+        public static void BitwiseOrAssignmentOperator()
         {
             CompoundAssignment(BitwiseOrOperator);
         }
 
-        public void BitwiseXorAssignmentOperator()
+        public static void BitwiseXorAssignmentOperator()
         {
             CompoundAssignment(BitwiseXorOperator);
         }
 
-        public void BitwiseLeftShiftAssignmentOperator()
+        public static void BitwiseLeftShiftAssignmentOperator()
         {
             CompoundAssignment(BitwiseLeftShiftOperator);
         }
 
-        public void BitwiseRightShiftAssignmentOperator()
+        public static void BitwiseRightShiftAssignmentOperator()
         {
             CompoundAssignment(BitwiseRightShiftOperator);
         }
@@ -145,22 +144,22 @@ namespace Atlas.AtlasCC
         //A modifiable lvalue is any lvalue expression of complete, non-array type which is not const-qualified, and, if it's a struct/union, has no members that are const-qualified, recursively.
         //Only modifiable lvalue expressions may be used as arguments to increment/decrement, and as left-hand arguments of assignment and compound assignment operators.
 
-        public void PostfixIncrementOperator()
+        public static void PostfixIncrementOperator()
         {
             IncrementDecrement(PrefixType.Postfix, IncrementType.Increment);
         }
         
-        public void PostfixDecrementOperator()
+        public static void PostfixDecrementOperator()
         {
             IncrementDecrement(PrefixType.Postfix, IncrementType.Decrement);
         }
 
-        public void PrefixIncrementOperator()
+        public static void PrefixIncrementOperator()
         {
             IncrementDecrement(PrefixType.Prefix, IncrementType.Increment);
         }
         
-        public void PrefixDecrementOperator()
+        public static void PrefixDecrementOperator()
         {
             IncrementDecrement(PrefixType.Prefix, IncrementType.Decrement);
         }
@@ -177,7 +176,7 @@ namespace Atlas.AtlasCC
             Decrement
         }
 
-        private void IncrementDecrement(PrefixType prefixType, IncrementType incrementType)
+        private static void IncrementDecrement(PrefixType prefixType, IncrementType incrementType)
         {
             // The operand expr of both prefix and postfix increment or decrement must be a modifiable lvalue of integer type or a pointer type.
             // The result of the postfix increment and decrement operators is the value of expr.
@@ -186,14 +185,14 @@ namespace Atlas.AtlasCC
 
             CExpression expr = PopExpression();
 
-            if (expr.IsModifiable)
+            if (!expr.IsModifiableLValue)
             {
-                CodeGenError("The operand of both prefix and postfix increment or decrement must be a modifiable lvalue");
+                throw new CompilerExcepion("The operand of both prefix and postfix increment or decrement must be a modifiable lvalue");
             }
 
             if (!expr.Type.IsInteger && !expr.Type.IsPointer)
             {
-                CodeGenError("The operand of both prefix and postfix increment or decrement must be integer type, or a pointer type");
+                throw new CompilerExcepion("The operand of both prefix and postfix increment or decrement must be integer type, or a pointer type");
             }
 
             CExpression result = new CExpression(expr.Type, ValueCatagory.RValue);
@@ -201,18 +200,18 @@ namespace Atlas.AtlasCC
             result.Add(expr);
             if (prefixType == PrefixType.Postfix)
             {
-                result.Add(new OpCodeEmitter(OpCode.LW)); // make size dependent
+                result.Add(new OpCodeEmitter(expr.GetLoadOperation()));
                 //TODO fix it so we dont have to do this iefficent thing
                 //do some twiddling with the stack pointer
                 result.Add(expr);
             }
             else
             {
-                result.Add(CopyTopOfStackOperation());
+                result.Add(new OpCodeEmitter(OpCode.COPY));
             }
-            result.Add(CopyTopOfStackOperation());
-            result.Add(new OpCodeEmitter(OpCode.LW)); // make size dependent
-            result.Add(new OpCodeEmitter(OpCode.PUSHW, (expr.Type.IsPointer ? expr.Type.ContainedType.Size : 1).ToString()));
+            result.Add(new OpCodeEmitter(OpCode.COPY));
+            result.Add(new OpCodeEmitter(expr.GetLoadOperation()));
+            result.Add(new OpCodeEmitter(OpCode.PUSH, (expr.Type.IsPointer ? expr.Type.ContainedType.Size : 1).ToString()));
 
             if (incrementType == IncrementType.Increment)
             {
@@ -223,10 +222,10 @@ namespace Atlas.AtlasCC
                 result.Add(new OpCodeEmitter(OpCode.SUB));
             }
 
-            result.Add(new OpCodeEmitter(OpCode.SW)); // make size dependend
+            result.Add(new OpCodeEmitter(expr.GetStoreOperation())); // make size dependend
             if (prefixType == PrefixType.Prefix)
             {
-                result.Add(new OpCodeEmitter(OpCode.LW)); // make size dependend
+                result.Add(new OpCodeEmitter(expr.GetLoadOperation()));
             }
 
             PushExpression(result);
@@ -251,22 +250,34 @@ namespace Atlas.AtlasCC
          * If int can represent the entire range of values of the original type, 
          * the value is converted to type int. Otherwise the value is converted to unsigned int.
          * Integer promotions preserve the value, including the sign:
-         * ATLAS SPECIFIC
-         * in terms of atlas, this just means that as integer value of any size is pushed onto the stack as a 32 bit word
          */
 
-        public CExpression PromoteInteger(CExpression expr)
+        private static CExpression PromoteInteger(CExpression expr)
         {
-            throw new NotImplementedException();
+            if(!expr.Type.IsInteger)
+            {
+                throw new CompilerExcepion("cannot promote non integer type");
+            }
+
+            if(CType.FromTypeClass(CTypeClass.CInt).TypeInArithmeticRange(expr.Type))
+            {
+                expr.ConvertToType(CType.FromTypeClass(CTypeClass.CInt));
+            }
+            else
+            {
+                expr.ConvertToType(CType.FromTypeClass(CTypeClass.CUInt));
+            }
+
+            return expr;
         }
 
-        public void UnaryPlusOperator()
+        public static void UnaryPlusOperator()
         {
             CExpression expr = PopExpression().ToRValue();
 
             if (!expr.Type.IsInteger)
             {
-                CodeGenError("sign manipulation operations can only be applied to integer types");
+                throw new CompilerExcepion("sign manipulation operations can only be applied to integer types");
             }
 
             expr = PromoteInteger(expr);
@@ -274,7 +285,7 @@ namespace Atlas.AtlasCC
             PushExpression(expr);
         }
 
-        public void UnaryMinusOperator()
+        public static void UnaryMinusOperator()
         {
             UnaryPlusOperator();
 
@@ -298,49 +309,91 @@ namespace Atlas.AtlasCC
          *  then the operand with the signed type is implicitly converted to the unsigned type
          *  
          *  Otherwise, the signedness is different and the signed operand's rank is greater than unsigned operand's rank. 
-         *  In this case, if the signed type can represent all values of the unsigned type, 
-         *  then the operand with the unsigned type is implicitly converted to the type of the signed operand.
+         *  In this case, 
+         *      if the signed type can represent all values of the unsigned type, 
+         *      then the operand with the unsigned type is implicitly converted to the type of the signed operand.
          * 
-         * Otherwise, both operands undergo implicit conversion to the unsigned type counterpart of the signed operand's type.
+         *      Otherwise, both operands undergo implicit conversion to the unsigned type counterpart of the signed operand's type.
          */
 
-        private CExpression UsualArithmaticConversion()
+        private static CExpression UsualArithmaticConversion()
         {
-            throw new NotImplementedException();
+            CExpression rhs = PromoteInteger(PopExpression().ToRValue());
+            CExpression lhs = PromoteInteger(PopExpression().ToRValue());
+
+            if(lhs.Type != rhs.Type)
+            {
+                CExpression uexpr;
+                CExpression sexpr;
+                
+                if(lhs.Type.IsUnsigned && !rhs.Type.IsUnsigned)
+                {
+                    uexpr = lhs;
+                    sexpr = rhs;
+                }
+                else
+                {
+                    uexpr = rhs;
+                    sexpr = lhs;
+                }
+
+                if(uexpr.Type.Size >= sexpr.Type.Size)
+                {
+                    sexpr.ConvertToType(uexpr.Type);
+                }
+                else
+                {
+                    if(sexpr.Type.TypeInArithmeticRange(uexpr.Type))
+                    {
+                        uexpr.ConvertToType(sexpr.Type);
+                    }
+                    else
+                    {
+                        sexpr.ToUnsigned();
+                        uexpr.ConvertToType(sexpr.Type);
+                    }
+                }
+            }
+
+            CExpression result = new CExpression(lhs.Type, ValueCatagory.RValue);
+            result.Add(lhs);
+            result.Add(rhs);
+
+            return result;
         }
         
-        public void AdditionOperator()
+        public static void AdditionOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.ADD));
             PushExpression(result);
         }
 
-        public void SubtractionOperator()
+        public static void SubtractionOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.SUB));
             PushExpression(result);
         }
 
-        public void MultiplicationOperator()
+        public static void MultiplicationOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.MUL));
             PushExpression(result);
         }
 
-        public void DivisionOperator()
+        public static void DivisionOperator()
         {
             throw new NotSupportedException("Atlas dosnt have hardware division");
         }
 
-        public void ModuloOperator()
+        public static void ModuloOperator()
         {
             throw new NotSupportedException("Atlas dosnt have hardware division");
         }
 
-        public void BitwiseNotOperator()
+        public static void BitwiseNotOperator()
         {
             //~ rhs
             //the operator ~ performs integer promotions on its only operand
@@ -350,7 +403,7 @@ namespace Atlas.AtlasCC
 
             if (!rhs.Type.IsInteger)
             {
-                CodeGenError("cannot perform bitwise not on non integer type");
+                throw new CompilerExcepion("cannot perform bitwise not on non integer type");
             }
 
             rhs = PromoteInteger(rhs);
@@ -363,35 +416,35 @@ namespace Atlas.AtlasCC
             PushExpression(result);
         }
 
-        public void BitwiseAndOperator()
+        public static void BitwiseAndOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.AND));
             PushExpression(result);
         }
 
-        public void BitwiseOrOperator()
+        public static void BitwiseOrOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.OR));
             PushExpression(result);
         }
 
-        public void BitwiseXorOperator()
+        public static void BitwiseXorOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.XOR));
             PushExpression(result);
         }
 
-        public void BitwiseLeftShiftOperator()
+        public static void BitwiseLeftShiftOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.SLL));
             PushExpression(result);
         }
 
-        public void BitwiseRightShiftOperator()
+        public static void BitwiseRightShiftOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.SRL));
@@ -402,7 +455,7 @@ namespace Atlas.AtlasCC
         //Logical operators apply standard boolean algebra operations to their operands.
         //http://en.cppreference.com/w/c/language/operator_logical
 
-        public void LogicalNotOperator()
+        public static void LogicalNotOperator()
         {
             /*
                 The logical NOT expression has the form
@@ -418,7 +471,7 @@ namespace Atlas.AtlasCC
             EqualToOperator();
         }
 
-        public void LogicalAndOperator()
+        public static void LogicalAndOperator()
         {
             /*
                 The logical AND expression has the form
@@ -435,7 +488,7 @@ namespace Atlas.AtlasCC
 
             if (!lhs.Type.InTypeGroup(CTypeGroups.CScalar) || !rhs.Type.InTypeGroup(CTypeGroups.CScalar))
             {
-                CodeGenError("operands to logical operation must be scalar");
+                throw new CompilerExcepion("operands to logical operation must be scalar");
             }
 
             //(lhs)
@@ -451,7 +504,7 @@ namespace Atlas.AtlasCC
             //(lhs)
             result.Add(lhs);
             //duptop
-            result.Add(CopyTopOfStackOperation());
+            result.Add(new OpCodeEmitter(OpCode.COPY));
 
             //lnot
             PushExpression(result);
@@ -459,12 +512,12 @@ namespace Atlas.AtlasCC
             result = PopExpression();
 
             //push end
-            string label = AutoGenerateLabel("LogicalAndEnd");
-            result.Add(new OpCodeEmitter(OpCode.PUSHW, label));
+            string label = CIdentifier.AutoGenerateLabel("LogicalAndEnd");
+            result.Add(new OpCodeEmitter(OpCode.PUSH, label));
             //jif
             result.Add(new OpCodeEmitter(OpCode.JIF));
             //pop
-            result.Add(new OpCodeEmitter(OpCode.POPW));
+            result.Add(new OpCodeEmitter(OpCode.POP));
             //(rhs)
             result.Add(rhs);
             //end:
@@ -473,7 +526,7 @@ namespace Atlas.AtlasCC
             PushExpression(result);
         }
 
-        public void LogicalOrOperator()
+        public static void LogicalOrOperator()
         {
             /*
                 The logical AND expression has the form
@@ -490,7 +543,7 @@ namespace Atlas.AtlasCC
 
             if (!lhs.Type.InTypeGroup(CTypeGroups.CScalar) || !rhs.Type.InTypeGroup(CTypeGroups.CScalar))
             {
-                CodeGenError("operands to logical operation must be scalar");
+                throw new CompilerExcepion("operands to logical operation must be scalar");
             }
 
             //(lhs)
@@ -505,14 +558,14 @@ namespace Atlas.AtlasCC
             //(lhs)
             result.Add(lhs);
             //duptop
-            result.Add(CopyTopOfStackOperation());
+            result.Add(new OpCodeEmitter(OpCode.COPY));
             //push end
-            string label = AutoGenerateLabel("LogicalOrEnd");
-            result.Add(new OpCodeEmitter(OpCode.PUSHW, label));
+            string label = CIdentifier.AutoGenerateLabel("LogicalOrEnd");
+            result.Add(new OpCodeEmitter(OpCode.PUSH, label));
             //jif
             result.Add(new OpCodeEmitter(OpCode.JIF));
             //pop
-            result.Add(new OpCodeEmitter(OpCode.POPW));
+            result.Add(new OpCodeEmitter(OpCode.POP));
             //(rhs)
             result.Add(rhs);
             //end:
@@ -533,48 +586,48 @@ namespace Atlas.AtlasCC
          * If lhs and rhs are expressions of pointer type, they must be both pointers to objects of compatible types.
          */
 
-        public void EqualToOperator()
+        public static void EqualToOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.EQU));
             PushExpression(result);
         }
 
-        public void NotEqualToOperator()
+        public static void NotEqualToOperator()
         {
             EqualToOperator();
             LogicalNotOperator();
         }
 
-        public void LessThanOperator()
+        public static void LessThanOperator()
         {
             CExpression result = UsualArithmaticConversion();
             result.Add(new OpCodeEmitter(OpCode.LESS));
             PushExpression(result);
         }
 
-        public void GreaterThanOperator()
+        public static void GreaterThanOperator()
         {
             SwapArgs();
             LessThanOperator();
         }
 
-        public void LessThanOrEqualOperator()
+        public static void LessThanOrEqualOperator()
         {
             CExpression rhs = PopExpression().ToRValue();
-            rhs.Add(new OpCodeEmitter(OpCode.PUSHW, "1")); //todo remember this will break if we ever go to floats
+            rhs.Add(new OpCodeEmitter(OpCode.PUSH, "1")); //todo remember this will break if we ever go to floats
             rhs.Add(new OpCodeEmitter(OpCode.ADD));
             PushExpression(rhs);
             LessThanOperator();
         }
 
-        public void GreaterThanOrEqualOperator()
+        public static void GreaterThanOrEqualOperator()
         {
             SwapArgs();
             LessThanOrEqualOperator();
         }
 
-        private void SwapArgs()
+        private static void SwapArgs()
         {
             CExpression a = PopExpression();
             CExpression b = PopExpression();
@@ -587,7 +640,7 @@ namespace Atlas.AtlasCC
         //Member access operators allow access to the members of their operands
         //http://en.cppreference.com/w/c/language/operator_member_access
 
-        public void SubscriptOperator()
+        public static void SubscriptOperator()
         {
             // The array subscrpt expression has the form
             // pointer-expression [ integer-expression ]	
@@ -605,12 +658,12 @@ namespace Atlas.AtlasCC
 
             if (!array.Type.IsPointer && !array.Type.IsArray)
             {
-                CodeGenError("cannot use array subscript operator on non pointer type");
+                throw new CompilerExcepion("cannot use array subscript operator on non pointer type");
             }
 
             if (!index.Type.IsInteger)
             {
-                CodeGenError("array index expression must be of integer type");
+                throw new CompilerExcepion("array index expression must be of integer type");
             }
 
             int elementSize = array.Type.ContainedType.Size;
@@ -620,14 +673,14 @@ namespace Atlas.AtlasCC
 
             result.Add(array);
             result.Add(index);
-            result.Add(new OpCodeEmitter(OpCode.PUSHW, elementSize.ToString()));
+            result.Add(new OpCodeEmitter(OpCode.PUSH, elementSize.ToString()));
             result.Add(new OpCodeEmitter(OpCode.MUL));
             result.Add(new OpCodeEmitter(OpCode.ADD));
 
             PushExpression(result);
         }
 
-        public void DereferenceOperator()
+        public static void DereferenceOperator()
         {
             //unaryOperator castExpression
             /*
@@ -644,7 +697,7 @@ namespace Atlas.AtlasCC
 
             if (!rhs.Type.IsPointer)
             {
-                CodeGenError("cannot dereference non pointer type");
+                throw new CompilerExcepion("cannot dereference non pointer type");
             }
 
             CExpression result;
@@ -666,7 +719,7 @@ namespace Atlas.AtlasCC
             PushExpression(result);
         }
 
-        public void AddressOfOperator()
+        public static void AddressOfOperator()
         {
             //  the operand of the address-of operator is not converted to an rvalue 
             
@@ -681,7 +734,7 @@ namespace Atlas.AtlasCC
             {
                 if (rhs.valueCatagory != ValueCatagory.LValue)
                 {
-                    CodeGenError("cannot take the address of a non lvalue");
+                    throw new CompilerExcepion("cannot take the address of a non lvalue");
                 }
 
                 CExpression expr = new CExpression(CType.PointerTo(rhs.Type), ValueCatagory.RValue);
@@ -691,7 +744,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public void MemberAccess(string idString)
+        public static void MemberAccess(string idString)
         {
             //the left-hand operand of the member access operator is not converted to an rvalue
             
@@ -699,27 +752,27 @@ namespace Atlas.AtlasCC
 
             if (obj.valueCatagory != ValueCatagory.LValue)
             {
-                CodeGenError("cannot get member from rvalue expression");
+                throw new CompilerExcepion("cannot get member from rvalue expression");
             }
 
-            if (obj.Type.IsStruct && obj.Type.StructMembers.Any(id => id.ToString().Equals(idString)))
+            if (obj.Type.IsStruct && obj.Type.StructMembers.Any(id => id.Name.Equals(idString)))
             {
-                CIdentifier ident = obj.Type.StructMembers.First(id => id.ToString().Equals(idString));
+                CIdentifier ident = obj.Type.StructMembers.First(id => id.Name.Equals(idString));
 
                 CExpression result = new CExpression(ident.Type, ValueCatagory.LValue);
                 result.Add(obj);
-                result.Add(new OpCodeEmitter(OpCode.PUSHW, ident.StructOffset.ToString()));
+                result.Add(new OpCodeEmitter(OpCode.PUSH, ident.StructOffset.ToString()));
                 result.Add(new OpCodeEmitter(OpCode.ADD));
 
                 PushExpression(result);
             }
             else
             {
-                CodeGenError("type " + obj.Type.ToString() + " has no member named \"" + idString + "\"");
+                throw new CompilerExcepion("type " + obj.Type.TypeName + " has no member named \"" + idString + "\"");
             }
         }
 
-        public void MemberAccessThroughPointer(string idString)
+        public static void MemberAccessThroughPointer(string idString)
         {
             DereferenceOperator();
             MemberAccess(idString);
@@ -729,7 +782,7 @@ namespace Atlas.AtlasCC
         //A collection of operators that do not fit into any of the other major categories.
         //http://en.cppreference.com/w/c/language/operator_other
 
-        public void FunctionCall(int numPassedArguments)
+        public static void FunctionCall(int numPassedArguments)
         {
             // postfixExpression '(' argumentExpressionList? ')'
             /*
@@ -758,7 +811,7 @@ namespace Atlas.AtlasCC
             //functionName	-	any expression of pointer-to-function type
             if (!functionName.Type.IsFunctionPointer)
             {
-                CodeGenError("canot call expresion of type " + functionName.Type.ToString() + ": expected pointer to function");
+                throw new CompilerExcepion("canot call expresion of type " + functionName.Type.TypeName + ": expected pointer to function");
             }
 
             IReadOnlyList<CType> argTyps = functionName.Type.ContainedType.FunctionArgumentTypes;
@@ -766,11 +819,11 @@ namespace Atlas.AtlasCC
             //The number of parameters must equal the number of arguments
             if (numPassedArguments < argTyps.Count)
             {
-                CodeGenError("to few arguments passed to function");
+                throw new CompilerExcepion("to few arguments passed to function");
             }
             else if (numPassedArguments > argTyps.Count)
             {
-                CodeGenError("to many arguments passed to function");
+                throw new CompilerExcepion("to many arguments passed to function");
             }
 
             //The type of each parameter must he a type such that implicit conversion as if by assignment exists 
@@ -779,7 +832,7 @@ namespace Atlas.AtlasCC
             {
                 if (!arguments[i].CanConvertImplicitlyToType(argTyps[1]))
                 {
-                    CodeGenError("error in " + i + "th argument: cannot convert argument of type " + arguments[i].Type + " to " + argTyps[i]);
+                    throw new CompilerExcepion("error in " + i + "th argument: cannot convert argument of type " + arguments[i].Type + " to " + argTyps[i]);
                 }
                 else
                 {
@@ -800,7 +853,7 @@ namespace Atlas.AtlasCC
             PushExpression(result);
         }
 
-        public void CommaOperator()
+        public static void CommaOperator()
         {
             //expression ',' assignmentExpression
 
@@ -826,21 +879,21 @@ namespace Atlas.AtlasCC
 
             CExpression result = new CExpression(rhs.Type, ValueCatagory.RValue);
             result.Add(lhs);
-            result.Add(new OpCodeEmitter(OpCode.POPW));
+            result.Add(new OpCodeEmitter(OpCode.POP));
             result.Add(rhs);
 
             PushExpression(result);
         }
 
-        public void TypeCast(string typeName)
+        public static void TypeCast(string typeName)
         {
             CExpression rhs = PopExpression().ToRValue();
 
-            CType type = CTypeFromName(typeName);
+            CType type = CType.CTypeFromName(typeName);
 
             if (!rhs.CanConvertToType(type))
             {
-                CodeGenError("cannot cast expresion of type " + rhs.Type + " to type " + type);
+                throw new CompilerExcepion("cannot cast expresion of type " + rhs.Type + " to type " + type);
             }
             else
             {
@@ -848,7 +901,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        public void CoditionalOperator()
+        public static void CoditionalOperator()
         {
             /*
                 The conditional operator expression has the form
@@ -885,12 +938,12 @@ namespace Atlas.AtlasCC
             //condition	-	an expression of scalar type
             if (!condition.Type.InTypeGroup(CTypeGroups.CScalar))
             {
-                CodeGenError("codition in a conditional expresion must be a scalar type");
+                throw new CompilerExcepion("codition in a conditional expresion must be a scalar type");
             }
 
             if (!exprt.Type.CompatableWith(exprf.Type))
             {
-                CodeGenError("values in conditional expressions must be of compatable types");
+                throw new CompilerExcepion("values in conditional expressions must be of compatable types");
             }
 
             //(condition)
@@ -915,8 +968,8 @@ namespace Atlas.AtlasCC
             result = PopExpression();
 
             //PUSH FALSECASE
-            string falseCase = AutoGenerateLabel("conditionalFalseCase");
-            result.Add(new OpCodeEmitter(OpCode.PUSHW, falseCase));
+            string falseCase = CIdentifier.AutoGenerateLabel("conditionalFalseCase");
+            result.Add(new OpCodeEmitter(OpCode.PUSH, falseCase));
 
             //JIF
             result.Add(new OpCodeEmitter(OpCode.JIF));
@@ -924,8 +977,8 @@ namespace Atlas.AtlasCC
             //(exprt)
             result.Add(exprt);
             //pushw ENDCONDITION
-            string end = AutoGenerateLabel("endConditional");
-            result.Add(new OpCodeEmitter(OpCode.PUSHW, end));
+            string end = CIdentifier.AutoGenerateLabel("endConditional");
+            result.Add(new OpCodeEmitter(OpCode.PUSH, end));
             //JMP
             result.Add(new OpCodeEmitter(OpCode.JMP));
             //FALSECASE:
@@ -940,16 +993,16 @@ namespace Atlas.AtlasCC
 
         //http://en.cppreference.com/w/c/language/sizeof
         
-        public void SizeOf(string typeName)
+        public static void SizeOf(string typeName)
         {
-            CType type = CTypeFromName(typeName);
+            CType type = CType.CTypeFromName(typeName);
             
             CExpression expr = new CExpression(CType.FromTypeClass(CTypeClass.CUInt), ValueCatagory.RValue);
-            expr.Add(new OpCodeEmitter(OpCode.PUSHW, type.Size.ToString()));
+            expr.Add(new OpCodeEmitter(OpCode.PUSH, type.Size.ToString()));
             PushExpression(expr);
         }
 
-        public void SizeOf()
+        public static void SizeOf()
         {
             /*
              * The operands of the sizeof operator are expressions that are not evaluated  
@@ -959,14 +1012,14 @@ namespace Atlas.AtlasCC
             //the operand of sizeof is not converted to an rvalue
 
             CExpression rhs = PopExpression();
-            SizeOf(rhs.Type.ToString());
+            SizeOf(rhs.Type.TypeName);
         }
 
         //ALIGNOF NOT SUPPORTED
         //http://en.cppreference.com/w/c/language/_Alignof
 
         // push rvalues for operations to consume
-        public void PushString(IEnumerable<string> literals)
+        public static void PushString(IEnumerable<string> literals)
         {
             // string literals are sequences of characters of type char[], char16_t[], char32_t[], or wchar_t[] that represent null-terminated strings
 
@@ -988,9 +1041,9 @@ namespace Atlas.AtlasCC
             throw new NotSupportedException("string literals not implimented yet");
         }
 
-        public void PushIdentifier(string idString)
+        public static void PushIdentifier(string idString)
         {
-            CIdentifier id = IdentifierFromNameInScope(idString);
+            CIdentifier id = CIdentifier.IdentifierFromNameInCurrentScope(idString);
             
             //TODO constant labels
             CExpression result = new CExpression(id.Type, id.Type.IsFunctionPointer ? ValueCatagory.RValue : ValueCatagory.LValue);
@@ -1005,19 +1058,19 @@ namespace Atlas.AtlasCC
             {
                 //get address of local variable relative to stack pointer
                 result.Add(new OpCodeEmitter(OpCode.PUSHBP));
-                result.Add(new OpCodeEmitter(OpCode.PUSHW, id.StackPointerOffset.ToString()));
+                result.Add(new OpCodeEmitter(OpCode.PUSH, id.StackPointerOffset.ToString()));
                 result.Add(new OpCodeEmitter(OpCode.ADD));
             }
             else
             {
                 //the assembler will take care of figuring out the addresses of global variables
-                result.Add(new OpCodeEmitter(OpCode.PUSHW, id.ToString()));
+                result.Add(new OpCodeEmitter(OpCode.PUSH, id.Name));
             }
 
             PushExpression(result);
         }
 
-        public void PushConstant(string literal)
+        public static void PushConstant(string literal)
         {
             /*
              * Constant values of certain types may be embedded in the source code of a C program using specialized expressions known as literals
@@ -1030,13 +1083,13 @@ namespace Atlas.AtlasCC
             CType type = TypeFromLiteral(literal);
 
             CExpression constant = new CExpression(type, ValueCatagory.RValue);
-            constant.Add(new OpCodeEmitter(OpCode.PUSHW, literal));
+            constant.Add(new OpCodeEmitter(OpCode.PUSH, literal));
 
             PushExpression(constant);
         }
         
         //TODO should this be moved?
-        private CType TypeFromLiteral(string literal)
+        private static CType TypeFromLiteral(string literal)
         {
             /*character constant 
              * ' c-char '	(1)	 
@@ -1084,20 +1137,15 @@ namespace Atlas.AtlasCC
             }
         }
 
-        //mild hack. use this to duplicate the value on the top of the stack (used in the assignment operator so you can return the value you assign)
-        private IEmitter CopyTopOfStackOperation()
+        public static IEnumerable<CExpression> Expressions
         {
-            EmitterList emitters = new EmitterList();
-
-            emitters.Add(new OpCodeEmitter(OpCode.PUSHSP));
-            emitters.Add(new OpCodeEmitter(OpCode.PUSHW, "4"));
-            emitters.Add(new OpCodeEmitter(OpCode.SUB));
-            emitters.Add(new OpCodeEmitter(OpCode.LW));
-
-            return emitters;
+            get
+            {
+                return Emmiters.Reverse();
+            }
         }
-
-        private CExpression PopExpression()
+        
+        public static CExpression PopExpression()
         {
             if (Emmiters.Count == 0)
             {
@@ -1114,9 +1162,11 @@ namespace Atlas.AtlasCC
             return (emitter as CExpression);
         }
 
-        private void PushExpression(CExpression exp)
+        private static void PushExpression(CExpression exp)
         {
             Emmiters.Push(exp);
         }
+
+        private static Stack<CExpression> Emmiters = new Stack<CExpression>();
     }
 }

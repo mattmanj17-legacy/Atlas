@@ -49,26 +49,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CLanguage\CDeclarations.cs" />
-    <Compile Include="CodeGen\CodeGenCore.cs" />
-    <Compile Include="CLanguage\COperators.cs" />
+    <Compile Include="CLanguage\COperator.cs" />
     <Compile Include="Antlr\C.g4.lexer.cs">
       <DependentUpon>C.g4</DependentUpon>
     </Compile>
     <Compile Include="Antlr\C.g4.parser.cs">
       <DependentUpon>C.g4</DependentUpon>
     </Compile>
-    <Compile Include="Compiler\CompilerDeclerations.cs" />
-    <Compile Include="Compiler\CompilerExpressions.cs" />
-    <Compile Include="Compiler\CompilerStatments.cs" />
     <Compile Include="CLanguage\CType.cs" />
-    <Compile Include="CodeGen\EmitterList.cs" />
+    <Compile Include="Emitters\EmitterList.cs" />
     <Compile Include="CLanguage\CExpression.cs" />
-    <Compile Include="Compiler\CompilerCore.cs" />
-    <Compile Include="CodeGen\IEmitter.cs" />
+    <Compile Include="AtlasCCompilerFrontEnd.cs" />
+    <Compile Include="Emitters\IEmitter.cs" />
     <Compile Include="CLanguage\CIdentifier.cs" />
-    <Compile Include="CodeGen\LabelEmitter.cs" />
-    <Compile Include="CodeGen\OpcodeEmitter.cs" />
+    <Compile Include="Emitters\AtlasEmitters\LabelEmitter.cs" />
+    <Compile Include="Emitters\AtlasEmitters\OpcodeEmitter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -88,6 +83,7 @@
       <Name>Atlas.Architecture</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

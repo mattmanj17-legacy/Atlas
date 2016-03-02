@@ -198,9 +198,59 @@ namespace Atlas.AtlasCC
     
     public class CType
     {
+        static CType()
+        {
+            InitBasicType(CTypeClass.CVoid);
+            InitBasicType(CTypeClass.CChar);
+            InitBasicType(CTypeClass.CSChar);
+            InitBasicType(CTypeClass.CUChar);
+            InitBasicType(CTypeClass.CShortInt);
+            InitBasicType(CTypeClass.CUShortInt);
+            InitBasicType(CTypeClass.CInt);
+            InitBasicType(CTypeClass.CUInt);
+            InitBasicType(CTypeClass.CLongInt);
+            InitBasicType(CTypeClass.CULongInt);
+            InitBasicType(CTypeClass.CLongLongInt);
+            InitBasicType(CTypeClass.CULongLongInt);
+            InitBasicType(CTypeClass.CFloat);
+            InitBasicType(CTypeClass.CDouble);
+            InitBasicType(CTypeClass.CLongDouble);
+        }
+
+        private static void InitBasicType(CTypeClass typeClass)
+        {
+            string name = NameFromTypeClass(typeClass);
+            types[NameFromTypeClass(typeClass)] = new CType(typeClass,name);
+        }
+        
         public static CType PointerTo(CType cType)
         {
             throw new NotImplementedException();
+        }
+
+        /*private readonly CTypeClass m_typeClass;
+        private readonly bool m_isConst;
+        private readonly string m_typeName;
+        private readonly int m_arraySize;
+        private readonly CType m_containedType;
+        private readonly IReadOnlyList<CIdentifier> m_enumConstants;
+        private IReadOnlyList<CIdentifier> m_structMembers;
+        private bool m_structComplete = false;
+        private readonly CType m_functionReturnType;
+        private readonly IReadOnlyList<CType> m_functionArgumentTypes;*/
+
+        private CType(CTypeClass typeClass, string name)
+        {
+            //todo expand this for more complex types
+            m_typeClass = typeClass;
+            m_isConst = false;
+            m_typeName = name;
+            m_arraySize = 0;
+            m_containedType = null;
+            m_enumConstants = null;
+            m_structMembers = null;
+            m_functionReturnType = null;
+            m_functionArgumentTypes = null;
         }
         
         public static CTypeGroups GetTypeGroup(CTypeClass classification)
@@ -240,9 +290,80 @@ namespace Atlas.AtlasCC
             }
         }
 
+        public static CType CTypeFromName(string name)
+        {
+            if(!types.ContainsKey(name))
+            {
+                throw new CompilerExcepion("unrecognized type " + name);
+            }
+            
+            return types[ResolveTypeDef(name)];
+        }
+
         public static CType FromTypeClass(CTypeClass typeClass)
         {
-            throw new NotImplementedException();
+            return CTypeFromName(NameFromTypeClass(typeClass));
+        }
+
+        private static string NameFromTypeClass(CTypeClass typeClass)
+        {
+            switch (typeClass)
+            {
+                case CTypeClass.CVoid:
+                    return "void";
+                case CTypeClass.CChar:
+                    return "char";
+                case CTypeClass.CSChar:
+                    return "signed char";
+                case CTypeClass.CUChar:
+                    return "unsigned char";
+                case CTypeClass.CShortInt:
+                    return "short int";
+                case CTypeClass.CUShortInt:
+                    return "unsigned short int";
+                case CTypeClass.CInt:
+                    return "int";
+                case CTypeClass.CUInt:
+                    return "unsigned int";
+                case CTypeClass.CLongInt:
+                    return "long int";
+                case CTypeClass.CULongInt:
+                    return "unsigned long int";
+                case CTypeClass.CLongLongInt:
+                    return "long long int";
+                case CTypeClass.CULongLongInt:
+                    return "unsigned long long int";
+                case CTypeClass.CFloat:
+                    return "float";
+                case CTypeClass.CDouble:
+                    return "double";
+                case CTypeClass.CLongDouble:
+                    return "long double";
+                case CTypeClass.CEnum:
+                case CTypeClass.CArray:
+                case CTypeClass.CStruct:
+                case CTypeClass.CFunction:
+                case CTypeClass.CPointer:
+                default:
+                    throw new InvalidOperationException("cannopt get name from this type");
+            }
+        }
+
+        private static string ResolveTypeDef(string name)
+        {
+            if (types.ContainsKey(name)) return name;
+            else if (!typeDefs.ContainsKey(name)) throw new CompilerExcepion("type " + name + " is undefined");
+            else return ResolveTypeDef(typeDefs[name]);
+        }
+
+        public static void TypeDef(string typeDefName, CType type)
+        {
+            if (typeDefs.ContainsKey(typeDefName))
+            {
+                throw new CompilerExcepion("Cannot typedef previosly typedefed name");
+            }
+
+            typeDefs[typeDefName] = type.TypeName;
         }
 
         public static int TypeClassSizeInBytes(CTypeClass typeClass)
@@ -545,10 +666,10 @@ namespace Atlas.AtlasCC
             equ = equ && TypeName.Equals(type.TypeName);
             equ = equ && ArraySize == type.ArraySize;
             equ = equ && ContainedType ==  type.ContainedType;
-            equ = equ && Enumerable.SequenceEqual(EnumConstants, type.EnumConstants);
-            equ = equ && Enumerable.SequenceEqual(StructMembers, type.StructMembers);
+            equ = equ && (EnumConstants == type.EnumConstants || (EnumConstants != null && type.EnumConstants != null && Enumerable.SequenceEqual(EnumConstants, type.EnumConstants)));
+            equ = equ && (StructMembers == type.StructMembers || (StructMembers != null && type.StructMembers != null && Enumerable.SequenceEqual(StructMembers, type.StructMembers)));
             equ = equ && FunctionReturnType == type.FunctionReturnType;
-            equ = equ && Enumerable.SequenceEqual(FunctionArgumentTypes, type.FunctionArgumentTypes);
+            equ = equ && (FunctionArgumentTypes == type.FunctionArgumentTypes || (FunctionArgumentTypes != null && type.FunctionArgumentTypes != null && Enumerable.SequenceEqual(FunctionArgumentTypes, type.FunctionArgumentTypes)));
             return equ;
         }
 
@@ -567,5 +688,68 @@ namespace Atlas.AtlasCC
         private bool m_structComplete = false;
         private readonly CType m_functionReturnType;
         private readonly IReadOnlyList<CType> m_functionArgumentTypes;
+
+        private static Dictionary<string, CType> types = new Dictionary<string, CType>();
+        private static Dictionary<string, string> typeDefs = new Dictionary<string, string>();
+
+        public bool HasConstMember
+        {
+            get
+            {
+                if(TypeClass != CTypeClass.CStruct)
+                {
+                    return false;
+                }
+                else
+                {
+                    return m_structMembers.Any(member => member.Type.IsConst || member.Type.HasConstMember);
+                }
+            }
+        }
+
+        public bool TypeInArithmeticRange(CType type)
+        {
+            if(IsUnsigned == type.IsUnsigned)
+            {
+                return Size >= type.Size;
+            }
+            else
+            {
+                if(IsUnsigned)
+                {
+                    return false;
+                }
+                else
+                {
+                    return Size > type.Size;
+                }
+            }
+        }
+
+        public bool IsVoidPointer
+        {
+            get
+            {
+                return IsPointer && m_containedType.TypeClass == CTypeClass.CVoid;
+            }
+        }
+
+        public bool IsUnsigned
+        {
+            get
+            {
+                switch (TypeClass)
+                {
+                    case CTypeClass.CUChar:
+                    case CTypeClass.CUShortInt:
+                    case CTypeClass.CUInt:
+                    case CTypeClass.CULongInt:
+                    case CTypeClass.CULongLongInt:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        }
     }
 }

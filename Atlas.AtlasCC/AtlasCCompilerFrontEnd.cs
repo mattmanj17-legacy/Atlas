@@ -1,20 +1,118 @@
-﻿using Antlr4.Runtime;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Antlr4.Runtime;
+using Antlr4.Runtime.Tree;
+using System.IO;
 
 namespace Atlas.AtlasCC
 {
-    partial class AtlasCCompiler : CBaseListener, IAntlrErrorListener<IToken>
+    public class CompilerExcepion : Exception
     {
+        public CompilerExcepion(string msg) : base(msg) { }
+    }
+    
+    public class AtlasCCompilerFrontEnd : CBaseListener, IAntlrErrorListener<IToken>
+    {
+        //TOP LEVEL INTERFACE
+
+        //by default errors and warnings are logged to stdout
+        public AtlasCCompilerFrontEnd() : this(Console.Out){}
+
+        //point the assembler output (errors and warnings) to a custom locations
+        public AtlasCCompilerFrontEnd(TextWriter outStream)
+        {
+            m_outStream = outStream;
+        }
+        
+        public string Compile(ICharStream cSource)
+        {
+            CLexer lexer = new CLexer(cSource);
+            CommonTokenStream tokens = new CommonTokenStream(lexer);
+            CParser parser = new CParser(tokens);
+            parser.RemoveErrorListeners();
+
+            parser.AddErrorListener(this);
+
+            try
+            {
+                CParser.CompilationUnitContext compilationUnit = parser.compilationUnit();
+                ParseTreeWalker walker = new ParseTreeWalker();
+
+                walker.Walk(this, compilationUnit);
+
+                string exprs = "";
+                foreach(CExpression expr in COperator.Expressions)
+                {
+                    exprs += expr.Emit();
+                }
+
+                foreach(CIdentifier ident in CIdentifier.StaticIdentifiers)
+                {
+                    exprs += ident.Emit();
+                }
+
+                return exprs;
+            }
+            catch (CompilerExcepion e)
+            {
+                m_outStream.WriteLine("Compilation Failed: " + e.Message);
+                return null;
+            }
+        }
+
+        public void SyntaxError(IRecognizer recognizer, IToken offendingSymbol, int line, int charPositionInLine, string msg, RecognitionException e)
+        {
+            m_outStream.Write("Error on line " + line + ": ");
+            m_outStream.WriteLine("Syntax Error at " + line + ":" + charPositionInLine);
+            m_outStream.WriteLine("Antlr message: " + msg);
+
+            List<string> stack = ((Parser)recognizer).GetRuleInvocationStack().Reverse().ToList();
+            m_outStream.WriteLine("rule stack: ");
+            foreach (string s in stack)
+            {
+                m_outStream.WriteLine("\t" + s);
+            }
+            throw new CompilerExcepion("Syntax Error");
+        }
+
+        //error handleing
+
+        private void SematicError(ParserRuleContext ctx, String msg)
+        {
+            SematicError(ctx.start, msg);
+        }
+
+        private void SematicError(IToken ctx, String msg)
+        {
+            m_outStream.WriteLine("Error on line " + ctx.Line + ": " + msg);
+            throw new CompilerExcepion("Sematic Error");
+        }
+
+        private void SafeCall(ParserRuleContext rule, Action func)
+        {
+            try
+            {
+                func();
+            }
+            catch (CompilerExcepion e)
+            {
+                SematicError(rule, e.Message);
+            }
+        }
+
+        //destination for errors and warnings
+        private readonly TextWriter m_outStream;
+
+        //expressions
         public override void ExitExpression(CParser.ExpressionContext context)
         {
             if (context.expression() != null)
             {
                 // expression ',' assignmentExpression
-                SafeCall(context, m_codeGen.CommaOperator);
+                SafeCall(context, COperator.CommaOperator);
             }
         }
 
@@ -50,47 +148,47 @@ namespace Atlas.AtlasCC
 
                 if (operation == "=")
                 {
-                    SafeCall(context, m_codeGen.BasicAssignmentOperator);
+                    SafeCall(context, COperator.BasicAssignmentOperator);
                 }
                 else if (operation == "*=")
                 {
-                    SafeCall(context, m_codeGen.MultiplicationAssignmentOperator);
+                    SafeCall(context, COperator.MultiplicationAssignmentOperator);
                 }
                 else if (operation == "/=")
                 {
-                    SafeCall(context, m_codeGen.DivisionAssignmentOperator);
+                    SafeCall(context, COperator.DivisionAssignmentOperator);
                 }
                 else if (operation == "%=")
                 {
-                    SafeCall(context, m_codeGen.ModuloAssignmentOperator);
+                    SafeCall(context, COperator.ModuloAssignmentOperator);
                 }
                 else if (operation == "+=")
                 {
-                    SafeCall(context, m_codeGen.AdditionAssignmentOperator);
+                    SafeCall(context, COperator.AdditionAssignmentOperator);
                 }
                 else if (operation == "-=")
                 {
-                    SafeCall(context, m_codeGen.SubtractionAssignmentOperator);
+                    SafeCall(context, COperator.SubtractionAssignmentOperator);
                 }
                 else if (operation == "<<=")
                 {
-                    SafeCall(context, m_codeGen.BitwiseLeftShiftAssignmentOperator);
+                    SafeCall(context, COperator.BitwiseLeftShiftAssignmentOperator);
                 }
                 else if (operation == ">>=")
                 {
-                    SafeCall(context, m_codeGen.BitwiseRightShiftAssignmentOperator);
+                    SafeCall(context, COperator.BitwiseRightShiftAssignmentOperator);
                 }
                 else if (operation == "&=")
                 {
-                    SafeCall(context, m_codeGen.BitwiseAndAssignmentOperator);
+                    SafeCall(context, COperator.BitwiseAndAssignmentOperator);
                 }
                 else if (operation == "^=")
                 {
-                    SafeCall(context, m_codeGen.BitwiseXorAssignmentOperator);
+                    SafeCall(context, COperator.BitwiseXorAssignmentOperator);
                 }
                 else if (operation == "|=")
                 {
-                    SafeCall(context, m_codeGen.BitwiseOrAssignmentOperator);
+                    SafeCall(context, COperator.BitwiseOrAssignmentOperator);
                 }
             }
         }
@@ -101,7 +199,7 @@ namespace Atlas.AtlasCC
             {
                 // logicalOrExpression ('?' expression ':' conditionalExpression)?
 
-                SafeCall(context, m_codeGen.CoditionalOperator);
+                SafeCall(context, COperator.CoditionalOperator);
             }
         }
 
@@ -110,7 +208,7 @@ namespace Atlas.AtlasCC
             if (context.logicalOrExpression() != null)
             {
                 // logicalOrExpression '||' logicalAndExpression
-                SafeCall(context, m_codeGen.LogicalOrOperator);
+                SafeCall(context, COperator.LogicalOrOperator);
             }
         }
 
@@ -119,7 +217,7 @@ namespace Atlas.AtlasCC
             if (context.logicalAndExpression() != null)
             {
                 // logicalAndExpression '&&' inclusiveOrExpression
-                SafeCall(context, m_codeGen.LogicalAndOperator);
+                SafeCall(context, COperator.LogicalAndOperator);
             }
         }
 
@@ -128,7 +226,7 @@ namespace Atlas.AtlasCC
             if (context.inclusiveOrExpression() != null)
             {
                 // inclusiveOrExpression '|' exclusiveOrExpression
-                SafeCall(context, m_codeGen.BitwiseOrOperator);
+                SafeCall(context, COperator.BitwiseOrOperator);
             }
         }
 
@@ -137,7 +235,7 @@ namespace Atlas.AtlasCC
             if (context.exclusiveOrExpression() != null)
             {
                 // exclusiveOrExpression '^' andExpression
-                SafeCall(context, m_codeGen.BitwiseXorOperator);
+                SafeCall(context, COperator.BitwiseXorOperator);
             }
         }
 
@@ -146,7 +244,7 @@ namespace Atlas.AtlasCC
             if (context.andExpression() != null)
             {
                 // andExpression '&' equalityExpression
-                SafeCall(context, m_codeGen.BitwiseAndOperator);
+                SafeCall(context, COperator.BitwiseAndOperator);
             }
         }
 
@@ -159,12 +257,12 @@ namespace Atlas.AtlasCC
                 if (operation == "==")
                 {
                     //equalityExpression '==' relationalExpression
-                    SafeCall(context, m_codeGen.EqualToOperator);
+                    SafeCall(context, COperator.EqualToOperator);
                 }
                 else
                 {
                     //equalityExpression '!=' relationalExpression
-                    SafeCall(context, m_codeGen.NotEqualToOperator);
+                    SafeCall(context, COperator.NotEqualToOperator);
                 }
             }
         }
@@ -182,22 +280,22 @@ namespace Atlas.AtlasCC
                 if (operation == "<")
                 {
                     //relationalExpression '<' shiftExpression
-                    SafeCall(context, m_codeGen.LessThanOperator);
+                    SafeCall(context, COperator.LessThanOperator);
                 }
                 else if (operation == ">")
                 {
                     //relationalExpression '>' shiftExpression
-                    SafeCall(context, m_codeGen.GreaterThanOperator);
+                    SafeCall(context, COperator.GreaterThanOperator);
                 }
                 else if (operation == "<=")
                 {
                     //relationalExpression '<=' shiftExpression
-                    SafeCall(context, m_codeGen.LessThanOrEqualOperator);
+                    SafeCall(context, COperator.LessThanOrEqualOperator);
                 }
                 else if (operation == ">=")
                 {
                     //relationalExpression '>=' shiftExpression
-                    SafeCall(context, m_codeGen.GreaterThanOrEqualOperator);
+                    SafeCall(context, COperator.GreaterThanOrEqualOperator);
                 }
             }
         }
@@ -211,12 +309,12 @@ namespace Atlas.AtlasCC
                 if (operation == "<<")
                 {
                     //shiftExpression '<<' additiveExpression
-                    SafeCall(context, m_codeGen.BitwiseLeftShiftOperator);
+                    SafeCall(context, COperator.BitwiseLeftShiftOperator);
                 }
                 else if (operation == ">>")
                 {
                     //shiftExpression '>>' additiveExpression
-                    SafeCall(context, m_codeGen.BitwiseRightShiftOperator);
+                    SafeCall(context, COperator.BitwiseRightShiftOperator);
                 }
             }
         }
@@ -230,12 +328,12 @@ namespace Atlas.AtlasCC
                 if (operation == "+")
                 {
                     //additiveExpression '+' multiplicativeExpression
-                    SafeCall(context, m_codeGen.AdditionOperator);
+                    SafeCall(context, COperator.AdditionOperator);
                 }
                 else if (operation == "-")
                 {
                     //additiveExpression '-' multiplicativeExpression
-                    SafeCall(context, m_codeGen.SubtractionOperator);
+                    SafeCall(context, COperator.SubtractionOperator);
                 }
             }
         }
@@ -249,17 +347,17 @@ namespace Atlas.AtlasCC
                 if (operation == "*")
                 {
                     //multiplicativeExpression '*' castExpression
-                    SafeCall(context, m_codeGen.MultiplicationOperator);
+                    SafeCall(context, COperator.MultiplicationOperator);
                 }
                 else if (operation == "/")
                 {
                     //multiplicativeExpression '/' castExpression
-                    SafeCall(context, m_codeGen.DivisionOperator);
+                    SafeCall(context, COperator.DivisionOperator);
                 }
                 else if (operation == "%")
                 {
                     //multiplicativeExpression '%' castExpression
-                    SafeCall(context, m_codeGen.ModuloOperator);
+                    SafeCall(context, COperator.ModuloOperator);
                 }
             }
         }
@@ -269,7 +367,7 @@ namespace Atlas.AtlasCC
             if (context.typeName() != null)
             {
                 //'(' typeName ')' castExpression
-                SafeCall(context, () => m_codeGen.TypeCast(context.typeName().GetText()));
+                SafeCall(context, () => COperator.TypeCast(context.typeName().GetText()));
             }
         }
 
@@ -289,50 +387,50 @@ namespace Atlas.AtlasCC
 
                 if (operation == "&")
                 {
-                    SafeCall(context, m_codeGen.AddressOfOperator);
+                    SafeCall(context, COperator.AddressOfOperator);
                 }
                 else if (operation == "*")
                 {
-                    SafeCall(context, m_codeGen.DereferenceOperator);
+                    SafeCall(context, COperator.DereferenceOperator);
                 }
                 else if (operation == "+")
                 {
-                    SafeCall(context, m_codeGen.UnaryPlusOperator);
+                    SafeCall(context, COperator.UnaryPlusOperator);
                 }
                 else if (operation == "-")
                 {
-                    SafeCall(context, m_codeGen.UnaryMinusOperator);
+                    SafeCall(context, COperator.UnaryMinusOperator);
                 }
                 else if (operation == "~")
                 {
-                    SafeCall(context, m_codeGen.BitwiseNotOperator);
+                    SafeCall(context, COperator.BitwiseNotOperator);
                 }
                 else if (operation == "!")
                 {
-                    SafeCall(context, m_codeGen.LogicalNotOperator);
+                    SafeCall(context, COperator.LogicalNotOperator);
                 }
             }
             else if (context.GetText().StartsWith("++"))
             {
                 //'++' unaryExpression
-                SafeCall(context, m_codeGen.PrefixIncrementOperator);
+                SafeCall(context, COperator.PrefixIncrementOperator);
             }
             else if (context.GetText().StartsWith("--"))
             {
                 //'--' unaryExpression
-                SafeCall(context, m_codeGen.PrefixDecrementOperator);
+                SafeCall(context, COperator.PrefixDecrementOperator);
             }
             else if (context.GetText().StartsWith("sizeof"))
             {
                 if (context.unaryExpression() != null)
                 {
                     //'sizeof' unaryExpression
-                    SafeCall(context, m_codeGen.SizeOf);
+                    SafeCall(context, COperator.SizeOf);
                 }
                 else
                 {
                     //'sizeof' '(' typeName ')'
-                    SafeCall(context, () => m_codeGen.SizeOf(context.typeName().GetText()));
+                    SafeCall(context, () => COperator.SizeOf(context.typeName().GetText()));
                 }
             }
             else if (context.Identifier() != null)
@@ -352,13 +450,13 @@ namespace Atlas.AtlasCC
             if (context.expression() != null)
             {
                 //postfixExpression '[' expression ']'
-                SafeCall(context, m_codeGen.SubscriptOperator);
+                SafeCall(context, COperator.SubscriptOperator);
             }
             else if (context.postfixExpression() != null && context.GetText().EndsWith(")"))
             {
                 //postfixExpression '(' argumentExpressionList? ')'
                 int numArgs = GetArgumentListLength(context.argumentExpressionList());
-                SafeCall(context, () => m_codeGen.FunctionCall(numArgs));
+                SafeCall(context, () => COperator.FunctionCall(numArgs));
             }
             else if (context.Identifier() != null)
             {
@@ -369,29 +467,29 @@ namespace Atlas.AtlasCC
                 int operationStringSize = contextStringSize - (objStringLength + idStringLength);
 
                 string idString = context.Identifier().GetText();
-                
+
                 //'.'
                 if (operationStringSize == 1)
                 {
                     //postfixExpression '.' Identifier
-                    SafeCall(context, () => m_codeGen.MemberAccess(idString));
+                    SafeCall(context, () => COperator.MemberAccess(idString));
                 }
                 //'->'
                 else
                 {
                     //postfixExpression '->' Identifier
-                    SafeCall(context, () => m_codeGen.MemberAccessThroughPointer(idString));
+                    SafeCall(context, () => COperator.MemberAccessThroughPointer(idString));
                 }
             }
             else if (context.GetText().EndsWith("++"))
             {
                 //postfixExpression '++'
-                SafeCall(context, m_codeGen.PostfixIncrementOperator);
+                SafeCall(context, COperator.PostfixIncrementOperator);
             }
             else if (context.GetText().EndsWith("--"))
             {
                 //postfixExpression '--'
-                SafeCall(context, m_codeGen.PostfixDecrementOperator);
+                SafeCall(context, COperator.PostfixDecrementOperator);
             }
             else if (context.initializerList() != null)
             {
@@ -411,18 +509,18 @@ namespace Atlas.AtlasCC
             {
                 //Identifier
 
-                SafeCall(context, () => m_codeGen.PushIdentifier(context.Identifier().GetText()));
+                SafeCall(context, () => COperator.PushIdentifier(context.Identifier().GetText()));
             }
             else if (context.Constant() != null)
             {
                 //Constant
-                SafeCall(context, () => m_codeGen.PushConstant(context.Constant().GetText()));
+                SafeCall(context, () => COperator.PushConstant(context.Constant().GetText()));
             }
             else if (context.StringLiteral().Count > 0)
             {
                 //StringLiteral+
                 var literals = context.StringLiteral().Select(lit => lit.GetText());
-                SafeCall(context, () => m_codeGen.PushString(literals));
+                SafeCall(context, () => COperator.PushString(literals));
             }
             else if (context.compoundStatement() != null)
             {
@@ -448,7 +546,7 @@ namespace Atlas.AtlasCC
 
         private int GetArgumentListLength(CParser.ArgumentExpressionListContext list)
         {
-            if(list == null)
+            if (list == null)
             {
                 return 0;
             }

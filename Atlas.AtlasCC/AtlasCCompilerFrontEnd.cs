@@ -9,9 +9,9 @@ using System.IO;
 
 namespace Atlas.AtlasCC
 {
-    public class CompilerExcepion : Exception
+    public class SemanticException : Exception
     {
-        public CompilerExcepion(string msg) : base(msg) { }
+        public SemanticException(string msg) : base(msg) { }
     }
     
     public class AtlasCCompilerFrontEnd : CBaseListener, IAntlrErrorListener<IToken>
@@ -56,7 +56,7 @@ namespace Atlas.AtlasCC
 
                 return exprs;
             }
-            catch (CompilerExcepion e)
+            catch (SemanticException e)
             {
                 m_outStream.WriteLine("Compilation Failed: " + e.Message);
                 return null;
@@ -67,28 +67,19 @@ namespace Atlas.AtlasCC
         {
             m_outStream.Write("Error on line " + line + ": ");
             m_outStream.WriteLine("Syntax Error at " + line + ":" + charPositionInLine);
-            m_outStream.WriteLine("Antlr message: " + msg);
+            m_outStream.WriteLine(msg);
 
-            List<string> stack = ((Parser)recognizer).GetRuleInvocationStack().Reverse().ToList();
-            m_outStream.WriteLine("rule stack: ");
-            foreach (string s in stack)
-            {
-                m_outStream.WriteLine("\t" + s);
-            }
-            throw new CompilerExcepion("Syntax Error");
+            throw new SemanticException("Syntax Error");
         }
 
         //error handleing
 
         private void SematicError(ParserRuleContext ctx, String msg)
         {
-            SematicError(ctx.start, msg);
-        }
-
-        private void SematicError(IToken ctx, String msg)
-        {
-            m_outStream.WriteLine("Error on line " + ctx.Line + ": " + msg);
-            throw new CompilerExcepion("Sematic Error");
+            m_outStream.WriteLine("Error on line " + ctx.start.Line + ": \n" + msg);
+            m_outStream.WriteLine("Offending Code: ");
+            m_outStream.WriteLine("\b\"" + ctx.GetText() + "\"");
+            throw new SemanticException("Sematic Error");
         }
 
         private void SafeCall(ParserRuleContext rule, Action func)
@@ -97,7 +88,7 @@ namespace Atlas.AtlasCC
             {
                 func();
             }
-            catch (CompilerExcepion e)
+            catch (SemanticException e)
             {
                 SematicError(rule, e.Message);
             }

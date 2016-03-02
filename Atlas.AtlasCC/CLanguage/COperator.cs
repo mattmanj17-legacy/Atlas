@@ -47,12 +47,12 @@ namespace Atlas.AtlasCC
 
             if(!lhs.IsModifiableLValue)
             {
-                throw new CompilerExcepion("Cannot assign to a non  modifiable lvalue");
+                throw new SemanticException("Cannot assign to a non modifiable lvalue");
             }
 
             if (!lhs.CanConvertImplicitlyToType(rhs.Type))
             {
-                throw new CompilerExcepion("cannot assign value of type " + rhs.Type + " to value of type " + lhs.Type);
+                throw new SemanticException("cannot assign value of type \n'" + rhs.Type.TypeName + "'\n to value of type\n '" + lhs.Type.TypeName + "'");
             }
 
             CExpression result = new CExpression(rhs.Type,ValueCatagory.RValue);
@@ -187,12 +187,12 @@ namespace Atlas.AtlasCC
 
             if (!expr.IsModifiableLValue)
             {
-                throw new CompilerExcepion("The operand of both prefix and postfix increment or decrement must be a modifiable lvalue");
+                throw new SemanticException("The operand of both prefix and postfix increment or decrement must be a modifiable lvalue");
             }
 
             if (!expr.Type.IsInteger && !expr.Type.IsPointer)
             {
-                throw new CompilerExcepion("The operand of both prefix and postfix increment or decrement must be integer type, or a pointer type");
+                throw new SemanticException("The operand of both prefix and postfix increment or decrement\n must be integer type, or a pointer type");
             }
 
             CExpression result = new CExpression(expr.Type, ValueCatagory.RValue);
@@ -256,7 +256,7 @@ namespace Atlas.AtlasCC
         {
             if(!expr.Type.IsInteger)
             {
-                throw new CompilerExcepion("cannot promote non integer type");
+                throw new SemanticException("cannot promote non integer type");
             }
 
             if(CType.FromTypeClass(CTypeClass.CInt).TypeInArithmeticRange(expr.Type))
@@ -277,7 +277,7 @@ namespace Atlas.AtlasCC
 
             if (!expr.Type.IsInteger)
             {
-                throw new CompilerExcepion("sign manipulation operations can only be applied to integer types");
+                throw new SemanticException("sign manipulation operations can only be applied to integer types");
             }
 
             expr = PromoteInteger(expr);
@@ -361,17 +361,65 @@ namespace Atlas.AtlasCC
 
             return result;
         }
+
+        private static CExpression PointerArithmatic()
+        {
+            CExpression rhs = PopExpression().ToRValue();
+            CExpression lhs = PopExpression().ToRValue();
+
+            if(!lhs.Type.IsPointer && !rhs.Type.IsPointer)
+            {
+                PushExpression(lhs);
+                PushExpression(rhs);
+
+                return UsualArithmaticConversion();
+            }
+
+            if(lhs.Type.IsPointer && rhs.Type.IsPointer)
+            {
+                throw new SemanticException("cannot add two pointer types");
+            }
+            else
+            {
+                CExpression ptr;
+                CExpression arith;
+
+                if(lhs.Type.IsPointer && rhs.Type.IsInteger)
+                {
+                    ptr = lhs;
+                    arith = rhs;
+                }
+                else if (lhs.Type.IsInteger && rhs.Type.IsPointer)
+                {
+                    ptr = rhs;
+                    arith = lhs;
+                }
+                else
+                {
+                    throw new SemanticException("cannot add/substract expresion of these types");
+                }
+
+                arith.Add(new OpCodeEmitter(OpCode.PUSH, ptr.Type.ContainedType.Size.ToString()));
+                arith.Add(new OpCodeEmitter(OpCode.MUL));
+
+                CExpression result = new CExpression(ptr.Type, ValueCatagory.RValue);
+                result.Add(ptr);
+                result.Add(arith);
+
+                return result;
+            }
+        }
         
         public static void AdditionOperator()
         {
-            CExpression result = UsualArithmaticConversion();
+            CExpression result = PointerArithmatic();
             result.Add(new OpCodeEmitter(OpCode.ADD));
             PushExpression(result);
         }
 
         public static void SubtractionOperator()
         {
-            CExpression result = UsualArithmaticConversion();
+            CExpression result = PointerArithmatic();
             result.Add(new OpCodeEmitter(OpCode.SUB));
             PushExpression(result);
         }
@@ -403,7 +451,7 @@ namespace Atlas.AtlasCC
 
             if (!rhs.Type.IsInteger)
             {
-                throw new CompilerExcepion("cannot perform bitwise not on non integer type");
+                throw new SemanticException("cannot perform bitwise not on non integer type");
             }
 
             rhs = PromoteInteger(rhs);
@@ -488,7 +536,7 @@ namespace Atlas.AtlasCC
 
             if (!lhs.Type.InTypeGroup(CTypeGroups.CScalar) || !rhs.Type.InTypeGroup(CTypeGroups.CScalar))
             {
-                throw new CompilerExcepion("operands to logical operation must be scalar");
+                throw new SemanticException("operands to logical operation must be scalar");
             }
 
             //(lhs)
@@ -543,7 +591,7 @@ namespace Atlas.AtlasCC
 
             if (!lhs.Type.InTypeGroup(CTypeGroups.CScalar) || !rhs.Type.InTypeGroup(CTypeGroups.CScalar))
             {
-                throw new CompilerExcepion("operands to logical operation must be scalar");
+                throw new SemanticException("operands to logical operation must be scalar");
             }
 
             //(lhs)
@@ -658,12 +706,12 @@ namespace Atlas.AtlasCC
 
             if (!array.Type.IsPointer && !array.Type.IsArray)
             {
-                throw new CompilerExcepion("cannot use array subscript operator on non pointer type");
+                throw new SemanticException("cannot use array subscript operator on non pointer type");
             }
 
             if (!index.Type.IsInteger)
             {
-                throw new CompilerExcepion("array index expression must be of integer type");
+                throw new SemanticException("array index expression must be of integer type");
             }
 
             int elementSize = array.Type.ContainedType.Size;
@@ -697,7 +745,7 @@ namespace Atlas.AtlasCC
 
             if (!rhs.Type.IsPointer)
             {
-                throw new CompilerExcepion("cannot dereference non pointer type");
+                throw new SemanticException("cannot dereference non pointer type");
             }
 
             CExpression result;
@@ -734,7 +782,7 @@ namespace Atlas.AtlasCC
             {
                 if (rhs.valueCatagory != ValueCatagory.LValue)
                 {
-                    throw new CompilerExcepion("cannot take the address of a non lvalue");
+                    throw new SemanticException("cannot take the address of a non lvalue");
                 }
 
                 CExpression expr = new CExpression(CType.PointerTo(rhs.Type), ValueCatagory.RValue);
@@ -752,7 +800,7 @@ namespace Atlas.AtlasCC
 
             if (obj.valueCatagory != ValueCatagory.LValue)
             {
-                throw new CompilerExcepion("cannot get member from rvalue expression");
+                throw new SemanticException("cannot get member from rvalue expression");
             }
 
             if (obj.Type.IsStruct && obj.Type.StructMembers.Any(id => id.Name.Equals(idString)))
@@ -768,7 +816,7 @@ namespace Atlas.AtlasCC
             }
             else
             {
-                throw new CompilerExcepion("type " + obj.Type.TypeName + " has no member named \"" + idString + "\"");
+                throw new SemanticException("type " + obj.Type.TypeName + " has no member named \"" + idString + "\"");
             }
         }
 
@@ -811,7 +859,7 @@ namespace Atlas.AtlasCC
             //functionName	-	any expression of pointer-to-function type
             if (!functionName.Type.IsFunctionPointer)
             {
-                throw new CompilerExcepion("canot call expresion of type " + functionName.Type.TypeName + ": expected pointer to function");
+                throw new SemanticException("canot call expresion of type " + functionName.Type.TypeName + ": expected pointer to function");
             }
 
             IReadOnlyList<CType> argTyps = functionName.Type.ContainedType.FunctionArgumentTypes;
@@ -819,11 +867,11 @@ namespace Atlas.AtlasCC
             //The number of parameters must equal the number of arguments
             if (numPassedArguments < argTyps.Count)
             {
-                throw new CompilerExcepion("to few arguments passed to function");
+                throw new SemanticException("to few arguments passed to function");
             }
             else if (numPassedArguments > argTyps.Count)
             {
-                throw new CompilerExcepion("to many arguments passed to function");
+                throw new SemanticException("to many arguments passed to function");
             }
 
             //The type of each parameter must he a type such that implicit conversion as if by assignment exists 
@@ -832,7 +880,7 @@ namespace Atlas.AtlasCC
             {
                 if (!arguments[i].CanConvertImplicitlyToType(argTyps[1]))
                 {
-                    throw new CompilerExcepion("error in " + i + "th argument: cannot convert argument of type " + arguments[i].Type + " to " + argTyps[i]);
+                    throw new SemanticException("error in " + i + "th argument: cannot convert argument of type " + arguments[i].Type + " to " + argTyps[i]);
                 }
                 else
                 {
@@ -893,7 +941,7 @@ namespace Atlas.AtlasCC
 
             if (!rhs.CanConvertToType(type))
             {
-                throw new CompilerExcepion("cannot cast expresion of type " + rhs.Type + " to type " + type);
+                throw new SemanticException("cannot cast expresion of type " + rhs.Type + " to type " + type);
             }
             else
             {
@@ -938,12 +986,12 @@ namespace Atlas.AtlasCC
             //condition	-	an expression of scalar type
             if (!condition.Type.InTypeGroup(CTypeGroups.CScalar))
             {
-                throw new CompilerExcepion("codition in a conditional expresion must be a scalar type");
+                throw new SemanticException("codition in a conditional expresion must be a scalar type");
             }
 
             if (!exprt.Type.CompatableWith(exprf.Type))
             {
-                throw new CompilerExcepion("values in conditional expressions must be of compatable types");
+                throw new SemanticException("values in conditional expressions must be of compatable types");
             }
 
             //(condition)

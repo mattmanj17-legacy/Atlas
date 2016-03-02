@@ -225,7 +225,15 @@ namespace Atlas.AtlasCC
         
         public static CType PointerTo(CType cType)
         {
-            throw new NotImplementedException();
+            string name = NameFromPointerToType(cType);
+            if (!types.ContainsKey(name)) types[name] = new CType(CTypeClass.CPointer, name, cType);
+
+            return types[name];
+        }
+
+        private static string NameFromPointerToType(CType cType)
+        {
+            return "pointer to " + cType.TypeName;
         }
 
         /*private readonly CTypeClass m_typeClass;
@@ -247,6 +255,20 @@ namespace Atlas.AtlasCC
             m_typeName = name;
             m_arraySize = 0;
             m_containedType = null;
+            m_enumConstants = null;
+            m_structMembers = null;
+            m_functionReturnType = null;
+            m_functionArgumentTypes = null;
+        }
+
+        private CType(CTypeClass typeClass, string name, CType containedType)
+        {
+            //todo expand this for more complex types
+            m_typeClass = typeClass;
+            m_isConst = false;
+            m_typeName = name;
+            m_arraySize = 0;
+            m_containedType = containedType;
             m_enumConstants = null;
             m_structMembers = null;
             m_functionReturnType = null;
@@ -294,7 +316,7 @@ namespace Atlas.AtlasCC
         {
             if(!types.ContainsKey(name))
             {
-                throw new CompilerExcepion("unrecognized type " + name);
+                throw new SemanticException("unrecognized type " + name);
             }
             
             return types[ResolveTypeDef(name)];
@@ -352,7 +374,7 @@ namespace Atlas.AtlasCC
         private static string ResolveTypeDef(string name)
         {
             if (types.ContainsKey(name)) return name;
-            else if (!typeDefs.ContainsKey(name)) throw new CompilerExcepion("type " + name + " is undefined");
+            else if (!typeDefs.ContainsKey(name)) throw new SemanticException("type " + name + " is undefined");
             else return ResolveTypeDef(typeDefs[name]);
         }
 
@@ -360,7 +382,7 @@ namespace Atlas.AtlasCC
         {
             if (typeDefs.ContainsKey(typeDefName))
             {
-                throw new CompilerExcepion("Cannot typedef previosly typedefed name");
+                throw new SemanticException("Cannot typedef previosly typedefed name");
             }
 
             typeDefs[typeDefName] = type.TypeName;
@@ -457,7 +479,7 @@ namespace Atlas.AtlasCC
             {
                 if(!Complete)
                 {
-                    throw new CompilerExcepion("cannot get size of incompleate type");
+                    throw new SemanticException("cannot get size of incompleate type");
                 }
                 else
                 {

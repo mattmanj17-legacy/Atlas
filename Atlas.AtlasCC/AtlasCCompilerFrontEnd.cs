@@ -7,26 +7,30 @@ using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using System.IO;
 
+//I used alot of documentation from this site
+//http://en.cppreference.com/w/c/language
+//there are links to parts of this site through out the code
+
 namespace Atlas.AtlasCC
 {
     public class SemanticException : Exception
     {
         public SemanticException(string msg) : base(msg) { }
     }
-    
+
     public class AtlasCCompilerFrontEnd : CBaseListener, IAntlrErrorListener<IToken>
     {
         //TOP LEVEL INTERFACE
 
         //by default errors and warnings are logged to stdout
-        public AtlasCCompilerFrontEnd() : this(Console.Out){}
+        public AtlasCCompilerFrontEnd() : this(Console.Out) { }
 
         //point the assembler output (errors and warnings) to a custom locations
         public AtlasCCompilerFrontEnd(TextWriter outStream)
         {
             m_outStream = outStream;
         }
-        
+
         public string Compile(ICharStream cSource)
         {
             CLexer lexer = new CLexer(cSource);
@@ -44,12 +48,12 @@ namespace Atlas.AtlasCC
                 walker.Walk(this, compilationUnit);
 
                 string exprs = "";
-                foreach(CExpression expr in COperator.Expressions)
+                foreach (CExpression expr in CExpression.Expressions)
                 {
                     exprs += expr.Emit();
                 }
 
-                foreach(CIdentifier ident in CIdentifier.StaticIdentifiers)
+                foreach (CIdentifier ident in CIdentifier.StaticIdentifiers)
                 {
                     exprs += ident.Emit();
                 }
@@ -63,7 +67,7 @@ namespace Atlas.AtlasCC
             }
         }
 
-        //error handleing
+        //ERROR HANDELING
 
         public void SyntaxError(IRecognizer recognizer, IToken offendingSymbol, int line, int charPositionInLine, string msg, RecognitionException e)
         {
@@ -73,7 +77,7 @@ namespace Atlas.AtlasCC
 
             throw new SemanticException("Syntax Error");
         }
-        
+
         private void SematicError(ParserRuleContext ctx, String msg)
         {
             m_outStream.WriteLine("Error on line " + ctx.start.Line + ": \n" + msg);
@@ -97,41 +101,235 @@ namespace Atlas.AtlasCC
         //destination for errors and warnings
         private readonly TextWriter m_outStream;
 
-        //statments
+        //DECLARATIONS
+
+        public override void ExitExternalDeclaration(CParser.ExternalDeclarationContext context)
+        {
+            CDecleration.FileScopeDeclaration();
+        }
+
+        public override void ExitFunctionDefinition(CParser.FunctionDefinitionContext context)
+        {
+            //declarationSpecifiers? declarator declarationList? compoundStatement
+            CDecleration.FunctionDefinition(GetSpecifierCount(context.declarationSpecifiers()), GetDeclarationListCount(context.declarationList()));
+        }
+
+        private int GetSpecifierCount(CParser.DeclarationSpecifiersContext specifiers)
+        {
+            if (specifiers == null)
+            {
+                return 0;
+            }
+            else
+            {
+                return specifiers.declarationSpecifier().Count;
+            }
+        }
+
+        private int GetDeclarationListCount(CParser.DeclarationListContext declList)
+        {
+            if (declList == null)
+            {
+                return 0;
+            }
+            else if (declList.declarationList() == null)
+            {
+                return 1;
+            }
+            else
+            {
+                return GetDeclarationListCount(declList.declarationList()) + 1;
+            }
+        }
+
+        private int GetDeclarationListCount(CParser.StructDeclarationListContext declList)
+        {
+            if (declList == null)
+            {
+                return 0;
+            }
+            else if (declList.structDeclarationList() == null)
+            {
+                return 1;
+            }
+            else
+            {
+                return GetDeclarationListCount(declList.structDeclarationList()) + 1;
+            }
+        }
+
+        public override void ExitDeclaration(CParser.DeclarationContext context)
+        {
+            //declarationSpecifiers initDeclaratorList? ';'
+            if (context.declarationSpecifiers() != null)
+            {
+                CDecleration.Declaration(GetSpecifierCount(context.declarationSpecifiers()), GetDeclaratorListCount(context.initDeclaratorList()));
+            }
+            //staticAssertDeclaration
+            else
+            {
+                SematicError(context, "staticAssert not supported");
+            }
+        }
+
+        private int GetDeclaratorListCount(CParser.InitDeclaratorListContext decltorList)
+        {
+            if (decltorList == null)
+            {
+                return 0;
+            }
+            else if (decltorList.initDeclaratorList() == null)
+            {
+                return 1;
+            }
+            else
+            {
+                return GetDeclaratorListCount(decltorList.initDeclaratorList()) + 1;
+            }
+        }
+
+        //declarationSpecifiers
+        
+        public override void ExitStorageClassSpecifier(CParser.StorageClassSpecifierContext context)
+        {
+            CDecleration.StorageClassSpecifier(context.GetText());
+        }
+
+        public override void ExitTypeSpecifier(CParser.TypeSpecifierContext context)
+        {
+            //atomicTypeSpecifier
+            if (context.atomicTypeSpecifier() != null)
+            {
+                SematicError(context, "atomic types not supported");
+            }
+            //structOrUnionSpecifier
+            else if (context.structOrUnionSpecifier() != null)
+            {
+                if(context.structOrUnionSpecifier().structOrUnion().GetText() == "union")
+                {
+                    SematicError(context, "unions not supported");
+                }
+                else if(context.structOrUnionSpecifier().structDeclarationList() != null)
+                {
+                    string idstring = context.structOrUnionSpecifier().Identifier() != null ? context.structOrUnionSpecifier().Identifier().GetText() : null;
+                    CDecleration.DefineStruct(idstring, GetDeclarationListCount(context.structOrUnionSpecifier().structDeclarationList()));
+                }
+                else
+                {
+                    CDecleration.DeclareStruct(context.structOrUnionSpecifier().Identifier().GetText());
+                }
+            }
+            //enumSpecifier
+            else if (context.enumSpecifier() != null)
+            {
+                if(context.enumSpecifier().enumeratorList() != null)
+                {
+                    string idString = context.enumSpecifier().Identifier() != null ? context.enumSpecifier().Identifier().GetText() : null;
+                    CDecleration.EnumDefinition(idString, GetEnumeratorListCount(context.enumSpecifier().enumeratorList()));
+                }
+                else
+                {
+                    CDecleration.EnumDeclaration(context.enumSpecifier().Identifier().GetText());
+                }
+            }
+            //typedefName
+            else if (context.typedefName() != null)
+            {
+                CDecleration.PushTypeDefName(context.typedefName().Identifier().GetText());
+            }
+            //'__typeof__' '(' constantExpression ')' --- GCC extension not supported
+            else if (context.constantExpression() != null)
+            {
+                SematicError(context, "gcc typeof not supported");
+            }
+            //else, a fundamental type
+            else
+            {
+                CDecleration.FundamentalTypeSpecifier(context.GetText());
+            }
+        }
+
+        public override void ExitTypeQualifier(CParser.TypeQualifierContext context)
+        {
+            CDecleration.TypeQualifier(context.GetText());
+        }
+
+        public override void ExitFunctionSpecifier(CParser.FunctionSpecifierContext context)
+        {
+            SematicError(context, "function specifier not supported");
+        }
+
+        public override void ExitAlignmentSpecifier(CParser.AlignmentSpecifierContext context)
+        {
+            SematicError(context, "Alignas not supported");
+        }
+
+        private int GetEnumeratorListCount(CParser.EnumeratorListContext enumList)
+        {
+            if (enumList == null)
+            {
+                return 0;
+            }
+            else if (enumList.enumeratorList() == null)
+            {
+                return 1;
+            }
+            else
+            {
+                return GetEnumeratorListCount(enumList.enumeratorList()) + 1;
+            }
+        }
+
+        //declarators
+
+        public override void ExitDeclarator(CParser.DeclaratorContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void ExitInitDeclarator(CParser.InitDeclaratorContext context)
+        {
+            if(context.initializer() != null)
+            {
+                CDecleration.InitilizeDeclarator();
+            }
+        }
+
+        //STATEMENTS
         //http://en.cppreference.com/w/c/language/statements
 
         public override void ExitLabeledStatement(CParser.LabeledStatementContext context)
         {
             //Identifier ':' statement
-            if(context.Identifier() != null)
+            if (context.Identifier() != null)
             {
-                CStatment.LabeledStatement(context.Identifier().GetText());
+                SafeCall(context, () => CStatment.LabeledStatement(context.Identifier().GetText()));
             }
             //'case' constantExpression ':' statement
             else if (context.constantExpression() != null)
             {
-                CStatment.CaseStatement();
+                SafeCall(context, CStatment.CaseStatement);
             }
             //'default' ':' statement
             else
             {
-                CStatment.DefaultStatement();
+                SafeCall(context, CStatment.DefaultStatement);
             }
         }
 
         public override void ExitCompoundStatement(CParser.CompoundStatementContext context)
         {
             //'{' blockItemList? '}'
-            CStatment.CompoundStatement(GetBlockItemListItemCount(context.blockItemList()));
+            SafeCall(context, () => CStatment.CompoundStatement(GetBlockItemListItemCount(context.blockItemList())));
         }
 
         private int GetBlockItemListItemCount(CParser.BlockItemListContext itemList)
         {
-            if(itemList == null)
+            if (itemList == null)
             {
                 return 0;
             }
-            else if(itemList.blockItemList() == null)
+            else if (itemList.blockItemList() == null)
             {
                 return 1;
             }
@@ -144,9 +342,9 @@ namespace Atlas.AtlasCC
         public override void ExitExpressionStatement(CParser.ExpressionStatementContext context)
         {
             //expression? ';'
-            if(context.expression() != null)
+            if (context.expression() != null)
             {
-                CStatment.ExpressionStatement();
+                SafeCall(context, CStatment.ExpressionStatement);
             }
         }
 
@@ -155,38 +353,38 @@ namespace Atlas.AtlasCC
             //'if' '(' expression ')' statement ('else' statement)?
             if(context.GetText().StartsWith("if"))
             {
-                CStatment.IfStatement(context.statement(1) != null);
+                SafeCall(context,()=>CStatment.IfStatement(context.statement(1) != null);
             }
             //'switch' '(' expression ')' statement
             else
             {
-                CStatment.SwitchStatement();
+                SafeCall(context,CStatment.SwitchStatement);
             }
         }
 
         public override void ExitIterationStatement(CParser.IterationStatementContext context)
         {
             //'while' '(' expression ')' statement
-            if(context.GetText().StartsWith("while"))
+            if (context.GetText().StartsWith("while"))
             {
-                CStatment.WhileLoopStatement();
+                SafeCall(context, CStatment.WhileLoopStatement);
             }
             //'do' statement 'while' '(' expression ')' ';'
             else if (context.GetText().StartsWith("do"))
             {
-                CStatment.DoWhileLoopStatement();
+                SafeCall(context, CStatment.DoWhileLoopStatement);
             }
             else
             {
                 //'for' '(' declaration expression? ';' expression? ')' statement
-                if(context.declaration() != null)
+                if (context.declaration() != null)
                 {
-                    CStatment.ForLoopWithDeclStatement(context.expression(0) != null, context.expression(1) != null);
+                    SafeCall(context, () => CStatment.ForLoopWithDeclStatement(context.expression(0) != null, context.expression(1) != null));
                 }
                 //'for' '(' expression? ';' expression? ';' expression? ')' statement
                 else
                 {
-                    CStatment.ForLoopStatement(context.expression(0) != null, context.expression(1) != null, context.expression(2) != null);
+                    SafeCall(context, () => CStatment.ForLoopStatement(context.expression(0) != null, context.expression(1) != null, context.expression(2) != null));
                 }
             }
         }
@@ -194,40 +392,40 @@ namespace Atlas.AtlasCC
         public override void ExitJumpStatement(CParser.JumpStatementContext context)
         {
             //'goto' Identifier ';'
-            if(context.Identifier() != null)
+            if (context.Identifier() != null)
             {
-                CStatment.GotoStatement(context.Identifier().GetText());
+                SafeCall(context, () => CStatment.GotoStatement(context.Identifier().GetText()));
             }
             //'continue' ';'
             if (context.GetText().StartsWith("continue"))
             {
-                CStatment.ContinueStatement();
+                SafeCall(context, CStatment.ContinueStatement);
             }
             //'break' ';'
             if (context.GetText().StartsWith("break"))
             {
-                CStatment.BreakStatement();
+                SafeCall(context, CStatment.BreakStatement);
             }
             //'return' expression? ';'
             if (context.GetText().StartsWith("return"))
             {
-                CStatment.ReturnStatement();
+                SafeCall(context, CStatment.ReturnStatement);
             }
             //'goto' unaryExpression ';' -- GCC extension not supported
             else
-            { 
+            {
                 SematicError(context, "gcc goto extention not supported");
             }
         }
 
-        
-        //expressions
+
+        //EXPRESSIONS
         public override void ExitExpression(CParser.ExpressionContext context)
         {
             if (context.expression() != null)
             {
                 // expression ',' assignmentExpression
-                SafeCall(context, COperator.CommaOperator);
+                SafeCall(context, CExpression.CommaOperator);
             }
         }
 
@@ -263,47 +461,47 @@ namespace Atlas.AtlasCC
 
                 if (operation == "=")
                 {
-                    SafeCall(context, COperator.BasicAssignmentOperator);
+                    SafeCall(context, CExpression.BasicAssignmentOperator);
                 }
                 else if (operation == "*=")
                 {
-                    SafeCall(context, COperator.MultiplicationAssignmentOperator);
+                    SafeCall(context, CExpression.MultiplicationAssignmentOperator);
                 }
                 else if (operation == "/=")
                 {
-                    SafeCall(context, COperator.DivisionAssignmentOperator);
+                    SafeCall(context, CExpression.DivisionAssignmentOperator);
                 }
                 else if (operation == "%=")
                 {
-                    SafeCall(context, COperator.ModuloAssignmentOperator);
+                    SafeCall(context, CExpression.ModuloAssignmentOperator);
                 }
                 else if (operation == "+=")
                 {
-                    SafeCall(context, COperator.AdditionAssignmentOperator);
+                    SafeCall(context, CExpression.AdditionAssignmentOperator);
                 }
                 else if (operation == "-=")
                 {
-                    SafeCall(context, COperator.SubtractionAssignmentOperator);
+                    SafeCall(context, CExpression.SubtractionAssignmentOperator);
                 }
                 else if (operation == "<<=")
                 {
-                    SafeCall(context, COperator.BitwiseLeftShiftAssignmentOperator);
+                    SafeCall(context, CExpression.BitwiseLeftShiftAssignmentOperator);
                 }
                 else if (operation == ">>=")
                 {
-                    SafeCall(context, COperator.BitwiseRightShiftAssignmentOperator);
+                    SafeCall(context, CExpression.BitwiseRightShiftAssignmentOperator);
                 }
                 else if (operation == "&=")
                 {
-                    SafeCall(context, COperator.BitwiseAndAssignmentOperator);
+                    SafeCall(context, CExpression.BitwiseAndAssignmentOperator);
                 }
                 else if (operation == "^=")
                 {
-                    SafeCall(context, COperator.BitwiseXorAssignmentOperator);
+                    SafeCall(context, CExpression.BitwiseXorAssignmentOperator);
                 }
                 else if (operation == "|=")
                 {
-                    SafeCall(context, COperator.BitwiseOrAssignmentOperator);
+                    SafeCall(context, CExpression.BitwiseOrAssignmentOperator);
                 }
             }
         }
@@ -314,7 +512,7 @@ namespace Atlas.AtlasCC
             {
                 // logicalOrExpression ('?' expression ':' conditionalExpression)?
 
-                SafeCall(context, COperator.CoditionalOperator);
+                SafeCall(context, CExpression.CoditionalOperator);
             }
         }
 
@@ -323,7 +521,7 @@ namespace Atlas.AtlasCC
             if (context.logicalOrExpression() != null)
             {
                 // logicalOrExpression '||' logicalAndExpression
-                SafeCall(context, COperator.LogicalOrOperator);
+                SafeCall(context, CExpression.LogicalOrOperator);
             }
         }
 
@@ -332,7 +530,7 @@ namespace Atlas.AtlasCC
             if (context.logicalAndExpression() != null)
             {
                 // logicalAndExpression '&&' inclusiveOrExpression
-                SafeCall(context, COperator.LogicalAndOperator);
+                SafeCall(context, CExpression.LogicalAndOperator);
             }
         }
 
@@ -341,7 +539,7 @@ namespace Atlas.AtlasCC
             if (context.inclusiveOrExpression() != null)
             {
                 // inclusiveOrExpression '|' exclusiveOrExpression
-                SafeCall(context, COperator.BitwiseOrOperator);
+                SafeCall(context, CExpression.BitwiseOrOperator);
             }
         }
 
@@ -350,7 +548,7 @@ namespace Atlas.AtlasCC
             if (context.exclusiveOrExpression() != null)
             {
                 // exclusiveOrExpression '^' andExpression
-                SafeCall(context, COperator.BitwiseXorOperator);
+                SafeCall(context, CExpression.BitwiseXorOperator);
             }
         }
 
@@ -359,7 +557,7 @@ namespace Atlas.AtlasCC
             if (context.andExpression() != null)
             {
                 // andExpression '&' equalityExpression
-                SafeCall(context, COperator.BitwiseAndOperator);
+                SafeCall(context, CExpression.BitwiseAndOperator);
             }
         }
 
@@ -372,12 +570,12 @@ namespace Atlas.AtlasCC
                 if (operation == "==")
                 {
                     //equalityExpression '==' relationalExpression
-                    SafeCall(context, COperator.EqualToOperator);
+                    SafeCall(context, CExpression.EqualToOperator);
                 }
                 else
                 {
                     //equalityExpression '!=' relationalExpression
-                    SafeCall(context, COperator.NotEqualToOperator);
+                    SafeCall(context, CExpression.NotEqualToOperator);
                 }
             }
         }
@@ -395,22 +593,22 @@ namespace Atlas.AtlasCC
                 if (operation == "<")
                 {
                     //relationalExpression '<' shiftExpression
-                    SafeCall(context, COperator.LessThanOperator);
+                    SafeCall(context, CExpression.LessThanOperator);
                 }
                 else if (operation == ">")
                 {
                     //relationalExpression '>' shiftExpression
-                    SafeCall(context, COperator.GreaterThanOperator);
+                    SafeCall(context, CExpression.GreaterThanOperator);
                 }
                 else if (operation == "<=")
                 {
                     //relationalExpression '<=' shiftExpression
-                    SafeCall(context, COperator.LessThanOrEqualOperator);
+                    SafeCall(context, CExpression.LessThanOrEqualOperator);
                 }
                 else if (operation == ">=")
                 {
                     //relationalExpression '>=' shiftExpression
-                    SafeCall(context, COperator.GreaterThanOrEqualOperator);
+                    SafeCall(context, CExpression.GreaterThanOrEqualOperator);
                 }
             }
         }
@@ -424,12 +622,12 @@ namespace Atlas.AtlasCC
                 if (operation == "<<")
                 {
                     //shiftExpression '<<' additiveExpression
-                    SafeCall(context, COperator.BitwiseLeftShiftOperator);
+                    SafeCall(context, CExpression.BitwiseLeftShiftOperator);
                 }
                 else if (operation == ">>")
                 {
                     //shiftExpression '>>' additiveExpression
-                    SafeCall(context, COperator.BitwiseRightShiftOperator);
+                    SafeCall(context, CExpression.BitwiseRightShiftOperator);
                 }
             }
         }
@@ -443,12 +641,12 @@ namespace Atlas.AtlasCC
                 if (operation == "+")
                 {
                     //additiveExpression '+' multiplicativeExpression
-                    SafeCall(context, COperator.AdditionOperator);
+                    SafeCall(context, CExpression.AdditionOperator);
                 }
                 else if (operation == "-")
                 {
                     //additiveExpression '-' multiplicativeExpression
-                    SafeCall(context, COperator.SubtractionOperator);
+                    SafeCall(context, CExpression.SubtractionOperator);
                 }
             }
         }
@@ -462,17 +660,17 @@ namespace Atlas.AtlasCC
                 if (operation == "*")
                 {
                     //multiplicativeExpression '*' castExpression
-                    SafeCall(context, COperator.MultiplicationOperator);
+                    SafeCall(context, CExpression.MultiplicationOperator);
                 }
                 else if (operation == "/")
                 {
                     //multiplicativeExpression '/' castExpression
-                    SafeCall(context, COperator.DivisionOperator);
+                    SafeCall(context, CExpression.DivisionOperator);
                 }
                 else if (operation == "%")
                 {
                     //multiplicativeExpression '%' castExpression
-                    SafeCall(context, COperator.ModuloOperator);
+                    SafeCall(context, CExpression.ModuloOperator);
                 }
             }
         }
@@ -482,7 +680,7 @@ namespace Atlas.AtlasCC
             if (context.typeName() != null)
             {
                 //'(' typeName ')' castExpression
-                SafeCall(context, () => COperator.TypeCast(context.typeName().GetText()));
+                SafeCall(context, () => CExpression.TypeCast(context.typeName().GetText()));
             }
         }
 
@@ -502,50 +700,50 @@ namespace Atlas.AtlasCC
 
                 if (operation == "&")
                 {
-                    SafeCall(context, COperator.AddressOfOperator);
+                    SafeCall(context, CExpression.AddressOfOperator);
                 }
                 else if (operation == "*")
                 {
-                    SafeCall(context, COperator.DereferenceOperator);
+                    SafeCall(context, CExpression.DereferenceOperator);
                 }
                 else if (operation == "+")
                 {
-                    SafeCall(context, COperator.UnaryPlusOperator);
+                    SafeCall(context, CExpression.UnaryPlusOperator);
                 }
                 else if (operation == "-")
                 {
-                    SafeCall(context, COperator.UnaryMinusOperator);
+                    SafeCall(context, CExpression.UnaryMinusOperator);
                 }
                 else if (operation == "~")
                 {
-                    SafeCall(context, COperator.BitwiseNotOperator);
+                    SafeCall(context, CExpression.BitwiseNotOperator);
                 }
                 else if (operation == "!")
                 {
-                    SafeCall(context, COperator.LogicalNotOperator);
+                    SafeCall(context, CExpression.LogicalNotOperator);
                 }
             }
             else if (context.GetText().StartsWith("++"))
             {
                 //'++' unaryExpression
-                SafeCall(context, COperator.PrefixIncrementOperator);
+                SafeCall(context, CExpression.PrefixIncrementOperator);
             }
             else if (context.GetText().StartsWith("--"))
             {
                 //'--' unaryExpression
-                SafeCall(context, COperator.PrefixDecrementOperator);
+                SafeCall(context, CExpression.PrefixDecrementOperator);
             }
             else if (context.GetText().StartsWith("sizeof"))
             {
                 if (context.unaryExpression() != null)
                 {
                     //'sizeof' unaryExpression
-                    SafeCall(context, COperator.SizeOf);
+                    SafeCall(context, CExpression.SizeOf);
                 }
                 else
                 {
                     //'sizeof' '(' typeName ')'
-                    SafeCall(context, () => COperator.SizeOf(context.typeName().GetText()));
+                    SafeCall(context, () => CExpression.SizeOf(context.typeName().GetText()));
                 }
             }
             else if (context.Identifier() != null)
@@ -565,13 +763,13 @@ namespace Atlas.AtlasCC
             if (context.expression() != null)
             {
                 //postfixExpression '[' expression ']'
-                SafeCall(context, COperator.SubscriptOperator);
+                SafeCall(context, CExpression.SubscriptOperator);
             }
             else if (context.postfixExpression() != null && context.GetText().EndsWith(")"))
             {
                 //postfixExpression '(' argumentExpressionList? ')'
                 int numArgs = GetArgumentListLength(context.argumentExpressionList());
-                SafeCall(context, () => COperator.FunctionCall(numArgs));
+                SafeCall(context, () => CExpression.FunctionCall(numArgs));
             }
             else if (context.Identifier() != null)
             {
@@ -587,24 +785,24 @@ namespace Atlas.AtlasCC
                 if (operationStringSize == 1)
                 {
                     //postfixExpression '.' Identifier
-                    SafeCall(context, () => COperator.MemberAccess(idString));
+                    SafeCall(context, () => CExpression.MemberAccess(idString));
                 }
                 //'->'
                 else
                 {
                     //postfixExpression '->' Identifier
-                    SafeCall(context, () => COperator.MemberAccessThroughPointer(idString));
+                    SafeCall(context, () => CExpression.MemberAccessThroughPointer(idString));
                 }
             }
             else if (context.GetText().EndsWith("++"))
             {
                 //postfixExpression '++'
-                SafeCall(context, COperator.PostfixIncrementOperator);
+                SafeCall(context, CExpression.PostfixIncrementOperator);
             }
             else if (context.GetText().EndsWith("--"))
             {
                 //postfixExpression '--'
-                SafeCall(context, COperator.PostfixDecrementOperator);
+                SafeCall(context, CExpression.PostfixDecrementOperator);
             }
             else if (context.initializerList() != null)
             {
@@ -624,18 +822,18 @@ namespace Atlas.AtlasCC
             {
                 //Identifier
 
-                SafeCall(context, () => COperator.PushIdentifier(context.Identifier().GetText()));
+                SafeCall(context, () => CExpression.PushIdentifier(context.Identifier().GetText()));
             }
             else if (context.Constant() != null)
             {
                 //Constant
-                SafeCall(context, () => COperator.PushConstant(context.Constant().GetText()));
+                SafeCall(context, () => CExpression.PushConstant(context.Constant().GetText()));
             }
             else if (context.StringLiteral().Count > 0)
             {
                 //StringLiteral+
                 var literals = context.StringLiteral().Select(lit => lit.GetText());
-                SafeCall(context, () => COperator.PushString(literals));
+                SafeCall(context, () => CExpression.PushString(literals));
             }
             else if (context.compoundStatement() != null)
             {

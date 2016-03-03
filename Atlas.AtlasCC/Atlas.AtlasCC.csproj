@@ -49,13 +49,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CLanguage\COperator.cs" />
     <Compile Include="Antlr\C.g4.lexer.cs">
       <DependentUpon>C.g4</DependentUpon>
     </Compile>
     <Compile Include="Antlr\C.g4.parser.cs">
       <DependentUpon>C.g4</DependentUpon>
     </Compile>
+    <Compile Include="CLanguage\CDecleration.cs" />
+    <Compile Include="CLanguage\CStatment.cs" />
     <Compile Include="CLanguage\CType.cs" />
     <Compile Include="Emitters\EmitterList.cs" />
     <Compile Include="CLanguage\CExpression.cs" />

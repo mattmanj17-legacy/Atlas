@@ -83,7 +83,7 @@ namespace Atlas.AtlasCC
             throw new NotImplementedException();
         }
 
-        private static CStatment PopStatement()
+        public static CStatment PopStatement()
         {
             throw new NotImplementedException();
         }

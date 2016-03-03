@@ -63,6 +63,8 @@ namespace Atlas.AtlasCC
             }
         }
 
+        //error handleing
+
         public void SyntaxError(IRecognizer recognizer, IToken offendingSymbol, int line, int charPositionInLine, string msg, RecognitionException e)
         {
             m_outStream.Write("Error on line " + line + ": ");
@@ -71,9 +73,7 @@ namespace Atlas.AtlasCC
 
             throw new SemanticException("Syntax Error");
         }
-
-        //error handleing
-
+        
         private void SematicError(ParserRuleContext ctx, String msg)
         {
             m_outStream.WriteLine("Error on line " + ctx.start.Line + ": \n" + msg);
@@ -97,6 +97,130 @@ namespace Atlas.AtlasCC
         //destination for errors and warnings
         private readonly TextWriter m_outStream;
 
+        //statments
+        //http://en.cppreference.com/w/c/language/statements
+
+        public override void ExitLabeledStatement(CParser.LabeledStatementContext context)
+        {
+            //Identifier ':' statement
+            if(context.Identifier() != null)
+            {
+                CStatment.LabeledStatement(context.Identifier().GetText());
+            }
+            //'case' constantExpression ':' statement
+            else if (context.constantExpression() != null)
+            {
+                CStatment.CaseStatement();
+            }
+            //'default' ':' statement
+            else
+            {
+                CStatment.DefaultStatement();
+            }
+        }
+
+        public override void ExitCompoundStatement(CParser.CompoundStatementContext context)
+        {
+            //'{' blockItemList? '}'
+            CStatment.CompoundStatement(GetBlockItemListItemCount(context.blockItemList()));
+        }
+
+        private int GetBlockItemListItemCount(CParser.BlockItemListContext itemList)
+        {
+            if(itemList == null)
+            {
+                return 0;
+            }
+            else if(itemList.blockItemList() == null)
+            {
+                return 1;
+            }
+            else
+            {
+                return GetBlockItemListItemCount(itemList.blockItemList()) + 1;
+            }
+        }
+
+        public override void ExitExpressionStatement(CParser.ExpressionStatementContext context)
+        {
+            //expression? ';'
+            if(context.expression() != null)
+            {
+                CStatment.ExpressionStatement();
+            }
+        }
+
+        public override void ExitSelectionStatement(CParser.SelectionStatementContext context)
+        {
+            //'if' '(' expression ')' statement ('else' statement)?
+            if(context.GetText().StartsWith("if"))
+            {
+                CStatment.IfStatement(context.statement(1) != null);
+            }
+            //'switch' '(' expression ')' statement
+            else
+            {
+                CStatment.SwitchStatement();
+            }
+        }
+
+        public override void ExitIterationStatement(CParser.IterationStatementContext context)
+        {
+            //'while' '(' expression ')' statement
+            if(context.GetText().StartsWith("while"))
+            {
+                CStatment.WhileLoopStatement();
+            }
+            //'do' statement 'while' '(' expression ')' ';'
+            else if (context.GetText().StartsWith("do"))
+            {
+                CStatment.DoWhileLoopStatement();
+            }
+            else
+            {
+                //'for' '(' declaration expression? ';' expression? ')' statement
+                if(context.declaration() != null)
+                {
+                    CStatment.ForLoopWithDeclStatement(context.expression(0) != null, context.expression(1) != null);
+                }
+                //'for' '(' expression? ';' expression? ';' expression? ')' statement
+                else
+                {
+                    CStatment.ForLoopStatement(context.expression(0) != null, context.expression(1) != null, context.expression(2) != null);
+                }
+            }
+        }
+
+        public override void ExitJumpStatement(CParser.JumpStatementContext context)
+        {
+            //'goto' Identifier ';'
+            if(context.Identifier() != null)
+            {
+                CStatment.GotoStatement(context.Identifier().GetText());
+            }
+            //'continue' ';'
+            if (context.GetText().StartsWith("continue"))
+            {
+                CStatment.ContinueStatement();
+            }
+            //'break' ';'
+            if (context.GetText().StartsWith("break"))
+            {
+                CStatment.BreakStatement();
+            }
+            //'return' expression? ';'
+            if (context.GetText().StartsWith("return"))
+            {
+                CStatment.ReturnStatement();
+            }
+            //'goto' unaryExpression ';' -- GCC extension not supported
+            else
+            { 
+                SematicError(context, "gcc goto extention not supported");
+            }
+        }
+
+        
         //expressions
         public override void ExitExpression(CParser.ExpressionContext context)
         {

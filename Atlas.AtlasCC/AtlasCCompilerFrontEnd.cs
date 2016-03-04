@@ -103,15 +103,15 @@ namespace Atlas.AtlasCC
 
         //DECLARATIONS
 
-        public override void ExitExternalDeclaration(CParser.ExternalDeclarationContext context)
+        public override void EnterFunctionDefinition(CParser.FunctionDefinitionContext context)
         {
-            CDecleration.FileScopeDeclaration();
+            CDeclaration.BeginFunctionDefinition();
         }
-
+        
         public override void ExitFunctionDefinition(CParser.FunctionDefinitionContext context)
         {
             //declarationSpecifiers? declarator declarationList? compoundStatement
-            CDecleration.FunctionDefinition(GetSpecifierCount(context.declarationSpecifiers()), GetDeclarationListCount(context.declarationList()));
+            CDeclaration.EndFunctionDefinition(GetSpecifierCount(context.declarationSpecifiers()));
         }
 
         private int GetSpecifierCount(CParser.DeclarationSpecifiersContext specifiers)
@@ -163,7 +163,7 @@ namespace Atlas.AtlasCC
             //declarationSpecifiers initDeclaratorList? ';'
             if (context.declarationSpecifiers() != null)
             {
-                CDecleration.Declaration(GetSpecifierCount(context.declarationSpecifiers()), GetDeclaratorListCount(context.initDeclaratorList()));
+                CDeclaration.Declaration(GetSpecifierCount(context.declarationSpecifiers()), GetDeclaratorListCount(context.initDeclaratorList()));
             }
             //staticAssertDeclaration
             else
@@ -192,9 +192,15 @@ namespace Atlas.AtlasCC
         
         public override void ExitStorageClassSpecifier(CParser.StorageClassSpecifierContext context)
         {
-            CDecleration.StorageClassSpecifier(context.GetText());
+            CDeclaration.PushStorageClassSpecifier(context.GetText());
         }
 
+        public override void EnterTypeSpecifier(CParser.TypeSpecifierContext context)
+        {
+            //beginstructdef
+            throw new NotImplementedException();
+        }
+        
         public override void ExitTypeSpecifier(CParser.TypeSpecifierContext context)
         {
             //atomicTypeSpecifier
@@ -212,11 +218,11 @@ namespace Atlas.AtlasCC
                 else if(context.structOrUnionSpecifier().structDeclarationList() != null)
                 {
                     string idstring = context.structOrUnionSpecifier().Identifier() != null ? context.structOrUnionSpecifier().Identifier().GetText() : null;
-                    CDecleration.DefineStruct(idstring, GetDeclarationListCount(context.structOrUnionSpecifier().structDeclarationList()));
+                    CDeclaration.EndStructDefinition(idstring);
                 }
                 else
                 {
-                    CDecleration.DeclareStruct(context.structOrUnionSpecifier().Identifier().GetText());
+                    CDeclaration.PushStructDeclaration(context.structOrUnionSpecifier().Identifier().GetText());
                 }
             }
             //enumSpecifier
@@ -225,17 +231,17 @@ namespace Atlas.AtlasCC
                 if(context.enumSpecifier().enumeratorList() != null)
                 {
                     string idString = context.enumSpecifier().Identifier() != null ? context.enumSpecifier().Identifier().GetText() : null;
-                    CDecleration.EnumDefinition(idString, GetEnumeratorListCount(context.enumSpecifier().enumeratorList()));
+                    CDeclaration.EnumDefinition(idString, GetEnumeratorListCount(context.enumSpecifier().enumeratorList()));
                 }
                 else
                 {
-                    CDecleration.EnumDeclaration(context.enumSpecifier().Identifier().GetText());
+                    CDeclaration.EnumDeclaration(context.enumSpecifier().Identifier().GetText());
                 }
             }
             //typedefName
             else if (context.typedefName() != null)
             {
-                CDecleration.PushTypeDefName(context.typedefName().Identifier().GetText());
+                CDeclaration.PushTypeDefName(context.typedefName().Identifier().GetText());
             }
             //'__typeof__' '(' constantExpression ')' --- GCC extension not supported
             else if (context.constantExpression() != null)
@@ -245,13 +251,18 @@ namespace Atlas.AtlasCC
             //else, a fundamental type
             else
             {
-                CDecleration.FundamentalTypeSpecifier(context.GetText());
+                CDeclaration.PushFundamentalTypeSpecifier(context.GetText());
             }
+        }
+
+        public override void ExitEnumerator(CParser.EnumeratorContext context)
+        {
+            CDeclaration.PushEnumerator(context.enumerationConstant().Identifier().GetText(), context.constantExpression() != null);
         }
 
         public override void ExitTypeQualifier(CParser.TypeQualifierContext context)
         {
-            CDecleration.TypeQualifier(context.GetText());
+            CDeclaration.PushTypeQualifier(context.GetText());
         }
 
         public override void ExitFunctionSpecifier(CParser.FunctionSpecifierContext context)
@@ -282,17 +293,118 @@ namespace Atlas.AtlasCC
 
         //declarators
 
+        public override void EnterDeclarator(CParser.DeclaratorContext context)
+        {
+            //beginFunctionDeclarator 
+            throw new NotImplementedException();
+        }
+        
         public override void ExitDeclarator(CParser.DeclaratorContext context)
         {
+            if(context.gccDeclaratorExtension().Count > 0)
+            {
+                throw new SemanticException("gcc Declarator Extensions not supported");
+            }
+
+            bool isPointer = context.pointer() != null;
+
+            CParser.DirectDeclaratorContext directDecltor = context.directDeclarator();
+
+            if(directDecltor.Identifier() != null)
+            {
+                CDeclaration.PushIdentifierDeclarator(isPointer, directDecltor.GetText());
+            }
+            else if(directDecltor.declarator() != null)
+            {
+                CDeclaration.NestedDeclarator(isPointer);
+            }
+            else if(directDecltor.GetText().EndsWith("*]"))
+            {
+                SematicError(context,"VLA not supported");
+            }
+            else if(directDecltor.GetText().EndsWith(")"))
+            {
+                if(directDecltor.identifierList() != null)
+                {
+                    SematicError(context, "old style (K&R) style functions not supported");
+                }
+                else
+                {
+                    CDeclaration.EndFunctionDeclarator(isPointer);
+                }
+            }
+            else
+            {
+                bool hasAssgnExpr = directDecltor.assignmentExpression() != null;
+                int numTypeQualifiers = GetTypeQualifierListCount(directDecltor.typeQualifierList());
+                CDeclaration.ArrayDeclarator(isPointer, numTypeQualifiers, hasAssgnExpr);
+            }
+            
+        }
+
+        private int GetParameterTypeListCount(CParser.ParameterTypeListContext parameterTypeListContext)
+        {
             throw new NotImplementedException();
+        }
+
+        private IEnumerable<string> GetIdentifiersFromList(CParser.IdentifierListContext identifierListContext)
+        {
+            throw new NotImplementedException();
+        }
+
+        private int GetTypeQualifierListCount(CParser.TypeQualifierListContext typeQualifierListContext)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void ExitPointer(CParser.PointerContext context)
+        {
+            if(context.GetText().StartsWith("^"))
+            {
+                SematicError(context, "blocks extention not supported");
+            }
+            else
+            {
+                CDeclaration.PointerModifier(GetTypeQualifierListCount(context.typeQualifierList()), context.pointer() != null);
+            }
+        }
+
+        public override void ExitParameterDeclaration(CParser.ParameterDeclarationContext context)
+        {
+            if(context.declarationSpecifiers2() != null)
+            {
+                SematicError(context, "abstract parameter declaration not supported (???????)");
+            }
+            else
+            {
+                int numSpecifiers = context.declarationSpecifiers().declarationSpecifier().Count;
+                CDeclaration.ParamaterDeclaration(numSpecifiers);
+            }
         }
 
         public override void ExitInitDeclarator(CParser.InitDeclaratorContext context)
         {
             if(context.initializer() != null)
             {
-                CDecleration.InitilizeDeclarator();
+                CDeclaration.DeclaratorWithInitilizer();
             }
+        }
+
+        public override void ExitInitializer(CParser.InitializerContext context)
+        {
+            if(context.assignmentExpression() != null)
+            {
+                CDeclaration.Initilizer();
+            }
+            else
+            {
+                CDeclaration.InitilizerList(GetInitializerListCount(context.initializerList()));
+            }
+        }
+
+        private int GetInitializerListCount(CParser.InitializerListContext initializerListContext)
+        {
+            throw new NotImplementedException();
         }
 
         //STATEMENTS
@@ -317,13 +429,18 @@ namespace Atlas.AtlasCC
             }
         }
 
+        public override void EnterCompoundStatement(CParser.CompoundStatementContext context)
+        {
+            SafeCall(context, CStatment.BeginCompoundStatement);
+        }
+        
         public override void ExitCompoundStatement(CParser.CompoundStatementContext context)
         {
             //'{' blockItemList? '}'
-            SafeCall(context, () => CStatment.CompoundStatement(GetBlockItemListItemCount(context.blockItemList())));
+            SafeCall(context, () => CStatment.EndCompoundStatement(GetStatementCount(context.blockItemList())));
         }
 
-        private int GetBlockItemListItemCount(CParser.BlockItemListContext itemList)
+        private int GetStatementCount(CParser.BlockItemListContext itemList)
         {
             if (itemList == null)
             {
@@ -335,7 +452,7 @@ namespace Atlas.AtlasCC
             }
             else
             {
-                return GetBlockItemListItemCount(itemList.blockItemList()) + 1;
+                return GetStatementCount(itemList.blockItemList()) + 1;
             }
         }
 
@@ -348,43 +465,57 @@ namespace Atlas.AtlasCC
             }
         }
 
+        public override void EnterSelectionStatement(CParser.SelectionStatementContext context)
+        {
+            //beginswitch
+            throw new NotImplementedException();
+        }
+        
         public override void ExitSelectionStatement(CParser.SelectionStatementContext context)
         {
             //'if' '(' expression ')' statement ('else' statement)?
             if(context.GetText().StartsWith("if"))
             {
-                SafeCall(context,()=>CStatment.IfStatement(context.statement(1) != null);
+                SafeCall(context,()=>CStatment.IfStatement(context.statement(1) != null));
             }
             //'switch' '(' expression ')' statement
             else
             {
-                SafeCall(context,CStatment.SwitchStatement);
+                SafeCall(context,CStatment.EndSwitchStatement);
             }
         }
 
+        public override void EnterIterationStatement(CParser.IterationStatementContext context)
+        {
+            //beginwhile
+            //begindowhile
+            //begin for
+            throw new NotImplementedException();
+        }
+        
         public override void ExitIterationStatement(CParser.IterationStatementContext context)
         {
             //'while' '(' expression ')' statement
             if (context.GetText().StartsWith("while"))
             {
-                SafeCall(context, CStatment.WhileLoopStatement);
+                SafeCall(context, CStatment.EndWhileLoopStatement);
             }
             //'do' statement 'while' '(' expression ')' ';'
             else if (context.GetText().StartsWith("do"))
             {
-                SafeCall(context, CStatment.DoWhileLoopStatement);
+                SafeCall(context, CStatment.EndDoWhileLoopStatement);
             }
             else
             {
                 //'for' '(' declaration expression? ';' expression? ')' statement
                 if (context.declaration() != null)
                 {
-                    SafeCall(context, () => CStatment.ForLoopWithDeclStatement(context.expression(0) != null, context.expression(1) != null));
+                    SafeCall(context, () => CStatment.EndForLoopWithDeclStatement(context.expression(0) != null, context.expression(1) != null));
                 }
                 //'for' '(' expression? ';' expression? ';' expression? ')' statement
                 else
                 {
-                    SafeCall(context, () => CStatment.ForLoopStatement(context.expression(0) != null, context.expression(1) != null, context.expression(2) != null));
+                    SafeCall(context, () => CStatment.EndForLoopStatement(context.expression(0) != null, context.expression(1) != null, context.expression(2) != null));
                 }
             }
         }

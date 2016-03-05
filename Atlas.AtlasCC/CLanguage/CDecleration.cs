@@ -6,17 +6,84 @@ using System.Threading.Tasks;
 
 namespace Atlas.AtlasCC
 {
+    public enum CDeclarationSpecifierType { Type, Storage, Const, Ignore }
+    public enum CStorageClass { Typedef, Auto, Static, Extern, Ignore }
+    public enum CConstType { Const, Ignore }
+
+    public class CInitilizer {
+        private CExpression cExpression;
+        private List<CInitilizer> initlist;
+
+        public CInitilizer(CExpression cExpression)
+        {
+            // TODO: Complete member initialization
+            this.cExpression = cExpression;
+            throw new NotImplementedException();
+        }
+
+        public CInitilizer(List<CInitilizer> initlist)
+        {
+            // TODO: Complete member initialization
+            this.initlist = initlist;
+            throw new NotImplementedException();
+        }
+    }
+
+    public class CEnumerator
+    {
+        public string Name;
+        public CExpression ConstVal;
+    }
+
+    public class CParamater { }
+
     public class CDeclaration
     {
-        private class CDeclarationSpecifier { }
+        private class CDeclarationSpecifier 
+        {
+            public CDeclarationSpecifierType SpeciferType;  
+            
+            public CType type;
+            public CStorageClass StorageClass;
+            public CConstType ConstType; 
+        }
 
-        private class CDeclarator { }
+        private class CDeclarator 
+        {
+            public CTypeModifier TypeModifier;
 
-        private class CParamater { }
+            public string Identifer;
 
-        private class CPointerModifier { }
+            public CInitilizer Init;
+        }
 
-        private class CEnumerator { }
+        private class CTypeModifier 
+        {
+            public CType ModifyType(CType toModify)
+            {
+                throw new NotImplementedException();
+            }
+
+            internal CTypeModifier ModifyModifier(CTypeModifier cTypeModifier)
+            {
+                throw new NotImplementedException();
+            }
+
+            internal static CTypeModifier ArrayModifier(List<CDeclarationSpecifier> qualifiers, CExpression assgn)
+            {
+                throw new NotImplementedException();
+            }
+
+            internal static CTypeModifier FunctionModifier(List<CParamater> Params)
+            {
+                throw new NotImplementedException();
+            }
+
+            internal static CTypeModifier PointerModifier(List<CDeclarationSpecifier> quals, CTypeModifier nestedPointer)
+            {
+                throw new NotImplementedException();
+            }
+        }
         
         //storage and linkage
         //http://en.cppreference.com/w/c/language/storage_duration
@@ -133,10 +200,46 @@ namespace Atlas.AtlasCC
          *  (each declarator provides additional type information and/or the identifier to declare). 
          *  Declarators may be accompanied by initializers. 
          */
-        public static void Declaration(int specifiers, int declarators)
+        public static void Declaration(int numSpecifier, int numDeclarators)
         {
-            throw new NotImplementedException();
+            List<CDeclarationSpecifier> specifiers = new List<CDeclarationSpecifier>();
+
+            for(int i = 0 ; i < numSpecifier; i++)
+            {
+                specifiers.Add(PopDeclSpec());
+            }
+
+            CDeclarationSpecifier typeSpec = specifiers.First(spec => spec.SpeciferType == CDeclarationSpecifierType.Type);
+            CDeclarationSpecifier storageClass = specifiers.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Storage);
+            CDeclarationSpecifier constQualifier = specifiers.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Const);
+
+            List<CDeclarator> declarators = new List<CDeclarator>();
+            
+            for (int i = 0; i < numDeclarators; i++)
+            {
+                declarators.Add(PopDeclarator());
+            }
+
+            foreach(CDeclarator declarator in declarators)
+            {
+                CIdentifier id = CIdentifier.CreateIdentifierInCurrentScope(declarator.Identifer, declarator.TypeModifier.ModifyType(typeSpec.type), storageClass == null ? CStorageClass.Ignore : storageClass.StorageClass, constQualifier == null ? CConstType.Ignore : constQualifier.ConstType);
+                id.Define(declarator.Init);
+            }
+
+            PushDecl(new CDeclaration());
         }
+
+        public static CDeclaration PopDecl()
+        {
+            return decls.Pop();
+        }
+
+        private static void PushDecl(CDeclaration decl)
+        {
+            decls.Push(decl);
+        }
+
+        private static Stack<CDeclaration> decls = new Stack<CDeclaration>();
 
         //declaration specifiers
 
@@ -144,43 +247,62 @@ namespace Atlas.AtlasCC
         //http://en.cppreference.com/w/c/language/storage_duration
         public static void PushStorageClassSpecifier(string specifier)
         {
+            var spec = new CDeclarationSpecifier();
+            spec.SpeciferType = CDeclarationSpecifierType.Storage;
+            spec.StorageClass = StorageClassFromString(specifier);
+            PushDeclSpec(spec);
+        }
+
+        private static CStorageClass StorageClassFromString(string specifier)
+        {
             throw new NotImplementedException();
         }
 
         //void, arithmetic type, typedefed name
-        public static void PushFundamentalTypeSpecifier(string typeName)
+        public static void PushTypeSpecifier(string typeName)
         {
-            throw new NotImplementedException();
+            var spec = new CDeclarationSpecifier();
+            spec.SpeciferType = CDeclarationSpecifierType.Type;
+            spec.type = CType.CTypeFromName(typeName);
+            PushDeclSpec(spec);
         }
 
         //struct decl is a specifier
         public static void PushStructDeclaration(string idString)
         {
-            throw new NotImplementedException();
+            var spec = new CDeclarationSpecifier();
+            spec.SpeciferType = CDeclarationSpecifierType.Type;
+            spec.type = CType.DeclareStruct(idString);
+            PushDeclSpec(spec);
         }
 
         //enum decl is a specifier
         //the only case where this is not also a definition, is in function prototypes (enum name x), and other weird places. this is one of the cruftyer parts of c
-        public static void EnumDeclaration(string idString)
+        public static void PushEnumDeclaration(string idString)
         {
-            throw new NotImplementedException();
-        }
-
-        //specifies that this is a typedef, not a real decl
-        public static void PushTypeDefName(string name)
-        {
-            throw new NotImplementedException();
+            var spec = new CDeclarationSpecifier();
+            spec.SpeciferType = CDeclarationSpecifierType.Type;
+            spec.type = CType.DeclareEnum(idString);
+            PushDeclSpec(spec);
         }
 
         //is this const or not
         public static void PushTypeQualifier(string qualifier)
+        {
+            var spec = new CDeclarationSpecifier();
+            spec.SpeciferType = CDeclarationSpecifierType.Const;
+            spec.ConstType = constTypeFromString(qualifier);
+            PushDeclSpec(spec);
+        }
+
+        private static CConstType constTypeFromString(string qualifier)
         {
             throw new NotImplementedException();
         }
 
         private static CDeclarationSpecifier PopDeclSpec()
         {
-            throw new NotImplementedException();
+            return declSpecs.Pop();
         }
 
         private static void PushDeclSpec(CDeclarationSpecifier declSpec)
@@ -218,47 +340,72 @@ namespace Atlas.AtlasCC
         //enter function scope
         public static void BeginFunctionDefinition()
         {
-            throw new NotImplementedException();
+            CIdentifier.EnterFunctionScope();
         }
         
         //exit function scope
         public static void EndFunctionDefinition(int numSpecifiers)
         {
-            throw new NotImplementedException();
+            CIdentifier.ExitFunctionScope();
+
+            List<CDeclarationSpecifier> specs = new List<CDeclarationSpecifier>();
+
+            for(int i = 0; i  < numSpecifiers; i++)
+            {
+                specs.Add(PopDeclSpec());
+            }
+
+            CDeclarationSpecifier typeSpec = specs.First(spec => spec.SpeciferType == CDeclarationSpecifierType.Type);
+            CDeclarationSpecifier storageClass = specs.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Storage);
+
+            CDeclarator paramDecl = PopDeclarator();
+
+            CIdentifier.DefineFunction(paramDecl.TypeModifier.ModifyType(typeSpec.type), paramDecl.Identifer, storageClass == null ? CStorageClass.Ignore : storageClass.StorageClass);
         }
 
         //see http://en.cppreference.com/w/c/language/struct (i know this is lazy, but a lot of this documentation is in CType.cs)
         //enter members definition
         public static void BeginStructDefinition()
         {
-            throw new NotImplementedException();
+            CType.BeginDefineStruct();
         }
 
         //exit members definition
         public static void EndStructDefinition(string idString)
         {
-            throw new NotImplementedException();
+            CType.EndDefineStruct(idString);
         }
 
         //see http://en.cppreference.com/w/c/language/enum (i know this is lazy, but a lot of this documentation is in CType.cs)
         public static void EnumDefinition(string idString, int enumeratorCount)
         {
-            throw new NotImplementedException();
+            List<CEnumerator> enums = new List<CEnumerator>();
+
+            for (int i = 0; i < enumeratorCount; i++)
+            {
+                enums.Add(PopEnumerator());
+            }
+
+            CType.DefineEnum(enums);
         }
 
         public static void PushEnumerator(string idString, bool hasConstant)
         {
-            throw new NotImplementedException();
+            CEnumerator enumer = new CEnumerator();
+            enumer.Name = idString;
+            enumer.ConstVal = hasConstant ? CExpression.PopExpression() : null;
+
+            PushEnumerator(enumer);
         }
 
         private static void PushEnumerator(CEnumerator enumerator)
         {
-            throw new NotImplementedException();
+            enumerators.Push(enumerator);
         }
 
         private static CEnumerator PopEnumerator()
         {
-            throw new NotImplementedException();
+            return enumerators.Pop();
         }
 
         private static Stack<CEnumerator> enumerators = new Stack<CEnumerator>();
@@ -321,41 +468,96 @@ namespace Atlas.AtlasCC
          */
         public static void DeclaratorWithInitilizer()
         {
-            throw new NotImplementedException();
+            CDeclarator decltor = new CDeclarator();
+
+            var old = PopDeclarator();
+            decltor.TypeModifier = old.TypeModifier;
+            decltor.Identifer = old.Identifer;
+            decltor.Init = inits.Pop();
+            PushDeclarator(decltor);
         }
 
         public static void PushIdentifierDeclarator(bool isPointer, string idString)
         {
-            throw new NotImplementedException();
+            CDeclarator decltor = new CDeclarator();
+
+            decltor.Identifer = idString;
+            decltor.TypeModifier = isPointer ? PopPointerModifier() : null;
+            PushDeclarator(decltor);
         }
 
         // has a (declarator) in it
         public static void NestedDeclarator(bool isPointer)
         {
-            throw new NotImplementedException();
+            CDeclarator decltor = new CDeclarator();
+
+            var old = PopDeclarator();
+
+            decltor.Identifer = old.Identifer;
+            decltor.TypeModifier = isPointer ? PopPointerModifier().ModifyModifier(old.TypeModifier) : old.TypeModifier;
+            PushDeclarator(decltor);
         }
 
         public static void ArrayDeclarator(bool isPointer, int numTypeQualifiers, bool hasAssgnExpr)
         {
-            throw new NotImplementedException();
+            CDeclarator old = PopDeclarator();
+
+            CExpression assgn = hasAssgnExpr ? CExpression.PopExpression() : null;
+
+            List<CDeclarationSpecifier> qualifiers = new List<CDeclarationSpecifier>();
+
+            for(int i = 0; i < numTypeQualifiers; i++)
+            {
+                qualifiers.Add(PopDeclSpec());
+            }
+
+            CDeclarator result = new CDeclarator();
+
+            result.Identifer = old.Identifer;
+            result.TypeModifier = CTypeModifier.ArrayModifier(qualifiers, assgn).ModifyModifier(old.TypeModifier);
+            if(isPointer)
+            {
+                result.TypeModifier = PopPointerModifier().ModifyModifier(result.TypeModifier);
+            }
+
+            PushDeclarator(result);
         }
 
         //parameter list
         //enter function prototype scope
         public static void BeginFunctionDeclarator()
         {
-            throw new NotImplementedException();
+            CIdentifier.EnterFunctionPrototypeScope();
         }
 
         //exit function prototype scope
-        public static void EndFunctionDeclarator(bool isPointer)
+        public static void EndFunctionDeclarator(bool isPointer, int numParam)
         {
-            throw new NotImplementedException();
+            CIdentifier.ExitFunctionPrototypeScope();
+
+            CDeclarator old = PopDeclarator();
+            
+            List<CParamater> Params = new List<CParamater>();
+
+            for (int i = 0; i < numParam; i++)
+            {
+                Params.Add(PopParam());
+            }
+
+            CDeclarator result = new CDeclarator();
+
+            result.Identifer = old.Identifer;
+            result.TypeModifier = CTypeModifier.FunctionModifier(Params).ModifyModifier(old.TypeModifier);
+
+            if(isPointer)
+            {
+                result.TypeModifier = PopPointerModifier().ModifyModifier(result.TypeModifier);
+            }
         }
 
         private static CDeclarator PopDeclarator()
         {
-            throw new NotImplementedException();
+            return declarators.Pop();
         }
 
         private static void PushDeclarator(CDeclarator declarator)
@@ -370,12 +572,32 @@ namespace Atlas.AtlasCC
         //define param in function scope or function prototype scope
         public static void ParamaterDeclaration(int numSpecifiers)
         {
-            throw new NotImplementedException();
+            List<CDeclarationSpecifier> specs = new List<CDeclarationSpecifier>();
+
+            for (int i = 0; i < numSpecifiers; i++)
+            {
+                specs.Add(PopDeclSpec());
+            }
+
+            CDeclarationSpecifier typeSpec = specs.First(spec => spec.SpeciferType == CDeclarationSpecifierType.Type);
+            CDeclarationSpecifier storageClass = specs.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Storage);
+            CDeclarationSpecifier constQualifier = specs.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Const);
+
+            CDeclarator declarator = PopDeclarator();
+
+            CParamater param = CIdentifier.CreateFunctionParameter(
+                declarator.Identifer, 
+                declarator.TypeModifier.ModifyType(typeSpec.type), 
+                storageClass == null ? CStorageClass.Ignore : storageClass.StorageClass, 
+                constQualifier == null ? CConstType.Ignore : constQualifier.ConstType
+            );
+
+            PushParam(param);
         }
 
         private static CParamater PopParam()
         {
-            throw new NotImplementedException();
+            return Params.Pop();
         }
 
         private static void PushParam(CParamater param)
@@ -387,37 +609,60 @@ namespace Atlas.AtlasCC
 
         //pointer modifier
         //cahnges a type to be a pointer
-        public static void PointerModifier(int numQualifiers, bool isNested)
+        public static void PushPointerModifier(int numQualifiers, bool isNested)
         {
-            throw new NotImplementedException();
+            List<CDeclarationSpecifier> quals = new List<CDeclarationSpecifier>();
+
+            for (int i = 0; i < numQualifiers; i++)
+            {
+                quals.Add(PopDeclSpec());
+            }
+
+            CTypeModifier nestedPointer = isNested ? PopPointerModifier() : null;
+
+            PushPointerModifier(CTypeModifier.PointerModifier(quals, nestedPointer));
         }
 
-        private static CPointerModifier PopPointerModifier()
+        private static CTypeModifier PopPointerModifier()
         {
-            throw new NotImplementedException();
+            return pointerModifers.Pop();
         }
 
-        private static void PushPointerModifier(CPointerModifier param)
+        private static void PushPointerModifier(CTypeModifier param)
         {
-            pointerMods.Push(param);
+            pointerModifers.Push(param);
         }
 
-        private static Stack<CPointerModifier> pointerMods = new Stack<CPointerModifier>();
+        private static Stack<CTypeModifier> pointerModifers = new Stack<CTypeModifier>();
 
         //initilizers
 
         //scalar init
         public static void Initilizer()
         {
-            throw new NotImplementedException();
+            inits.Push(new CInitilizer(CExpression.PopExpression()));
         }
 
         //array init
         public static void InitilizerList(int numInitilizers)
         {
+            List<CInitilizer> initlist = new List<CInitilizer>();
+
+            for(int i = 0; i < numInitilizers; i++)
+            {
+                initlist.Add(inits.Pop());
+            }
+
+            inits.Push(new CInitilizer(initlist));
+        }
+
+        static Stack<CInitilizer> inits = new Stack<CInitilizer>();
+
+        internal CStatment GetDefinitionStatment()
+        {
             throw new NotImplementedException();
         }
 
-        
+        public bool IsDefinition { get; set; }
     }
 }

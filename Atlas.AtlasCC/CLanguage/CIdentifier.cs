@@ -21,9 +21,14 @@ namespace Atlas.AtlasCC
         }
 
         //todo handle scope
-        private static void CreateIdentifierInCurrentScope(string name, CType type)
+        public static CIdentifier CreateIdentifierInCurrentScope(string name, CType cType, CStorageClass StorageClass = CStorageClass.Ignore, CConstType ConstType = CConstType.Ignore)
         {
-            identifiers[name] = new CIdentifier(type,name,false,false,-1,-1);
+            throw new NotImplementedException();
+        }
+
+        public void Define(CInitilizer cInitilizer)
+        {
+            throw new NotImplementedException();
         }
         
         static CIdentifier()
@@ -142,6 +147,51 @@ namespace Atlas.AtlasCC
             {
                 return identifiers.Values;
             }
+        }
+
+        internal static void EnterFunctionScope()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void ExitFunctionScope()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void DefineFunction(CType cType, string p, CStorageClass cStorageClass)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void EnterFunctionPrototypeScope()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void ExitFunctionPrototypeScope()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static CParamater CreateFunctionParameter(string p, CType cType, CStorageClass cStorageClass, CConstType cConstType)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static CIdentifier CreatLabelInFunctionScope(string label)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void EnterBlockScope()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void ExitBlockScope()
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -6,6 +6,19 @@ using System.Threading.Tasks;
 
 namespace Atlas.AtlasCC
 {
+    public enum CCompoundStatmentItemType
+    {
+        Statment,
+        Declaration
+    }
+
+    public enum CForInitType
+    {
+        Expression,
+        Decl,
+        None
+    }
+
     //http://en.cppreference.com/w/c/language/statements
     //Statements are fragments of the C program that are executed in sequence. The body of any function is a compound statement, which, in turn is a sequence of statements and declarations:
     public class CStatment : EmitterList
@@ -18,7 +31,69 @@ namespace Atlas.AtlasCC
         public static void LabeledStatement(string label)
         {
             //identifier : statement
+            PushStatement(PopStatement().AddLabel(label));
+        }
+
+        private CStatment AddLabel(string label)
+        {
+            CIdentifier.CreatLabelInFunctionScope(label);
+            labels.Add(label);
+            return this;
+        }
+
+        private List<string> labels = new List<string>();
+        private List<CStatment> blockBody;
+        private CExpression cExpression;
+        private CStatment cStatment;
+        private CStatment cStatment1;
+        private CStatment cStatment2;
+        private CIdentifier id;
+        private bool p;
+
+        public CStatment(List<CStatment> blockBody)
+        {
+            // TODO: Complete member initialization
+            this.blockBody = blockBody;
             throw new NotImplementedException();
+        }
+
+        public CStatment(CExpression cExpression)
+        {
+            // TODO: Complete member initialization
+            this.cExpression = cExpression;
+        }
+
+        public CStatment(CExpression cExpression, CStatment cStatment)
+        {
+            // TODO: Complete member initialization
+            this.cExpression = cExpression;
+            this.cStatment = cStatment;
+        }
+
+        public CStatment(CExpression cExpression, CStatment cStatment1, CStatment cStatment2)
+        {
+            // TODO: Complete member initialization
+            this.cExpression = cExpression;
+            this.cStatment1 = cStatment1;
+            this.cStatment2 = cStatment2;
+        }
+
+        public CStatment(CIdentifier id)
+        {
+            // TODO: Complete member initialization
+            this.id = id;
+        }
+
+        public CStatment(CExpression cExpression, bool p)
+        {
+            // TODO: Complete member initialization
+            this.cExpression = cExpression;
+            this.p = p;
+        }
+
+        public CStatment()
+        {
+            // TODO: Complete member initialization
         }
 
         // Case label in a switch statement.
@@ -27,7 +102,8 @@ namespace Atlas.AtlasCC
         public static void CaseStatement()
         {
             //case constant_expression : statement
-            throw new NotImplementedException();
+            //PushStatement(PopStatement().MakeCaseStatment(CExpression.PopExpression()));
+            throw new NotSupportedException("switch not implimented");
         }
 
         // Default label in a switch statement.
@@ -36,7 +112,8 @@ namespace Atlas.AtlasCC
         public static void DefaultStatement()
         {
             //default : statement
-            throw new NotImplementedException();
+            //PushStatement(PopStatement().MakeDefaultStatment());
+            throw new NotSupportedException("switch not implimented");
         }
 
         //A compound statement, or block, is a brace-enclosed sequence of statements and declarations.
@@ -46,18 +123,47 @@ namespace Atlas.AtlasCC
         //http://en.cppreference.com/w/c/language/scope
         public static void BeginCompoundStatement()
         {
-            throw new NotImplementedException();
+            CIdentifier.EnterBlockScope();
         }
 
-        public static void EndCompoundStatement(int numStatements)
+        public static void EndCompoundStatement(List<CCompoundStatmentItemType> itemTypes)
         {
-            throw new NotImplementedException();
+            CIdentifier.ExitBlockScope();
+
+            List<CStatment> blockBody = new List<CStatment>();
+
+            //the item types come in sequential order (top to bottom), but they are sitting on the stack in reverse order (botom to top)
+            //revers the list to deal with this
+            itemTypes.Reverse();
+            foreach(var itemType in itemTypes)
+            {
+                if(itemType == CCompoundStatmentItemType.Statment)
+                {
+                    CStatment stat = PopStatement();
+                    blockBody.Add(stat);
+                }
+                else
+                {
+                    CDeclaration decl = CDeclaration.PopDecl();
+
+                    if(decl.IsDefinition)
+                    {
+                        //get a statments that initilizes the local variable
+                        blockBody.Add(decl.GetDefinitionStatment());
+                    }
+                }
+            }
+
+            //put the statments back in top to bottom order
+            blockBody.Reverse();
+
+            PushStatement(new CStatment(blockBody));
         }
 
         //An expression followed by a semicolon is a statement.
         public static void ExpressionStatement()
         {
-            throw new NotImplementedException();
+            PushStatement(new CStatment(CExpression.PopExpression()));
         }
 
         //http://en.cppreference.com/w/c/language/if
@@ -66,19 +172,17 @@ namespace Atlas.AtlasCC
             //expression must be an expression of any scalar type.
             //If expression compares not equal to the integer zero, statement_true is executed.
             //In the else form, if expression compares equal to the integer zero, statement_false is executed.
-            
-            //if ( expression ) statement_true
-            if(!hasElse)
-            {
 
+            //if ( expression ) statement_true
+            if (!hasElse)
+            {
+                PushStatement(new CStatment(CExpression.PopExpression(), PopStatement()));
             }
             //if ( expression ) statement_true else statement_false	
             else
             {
-
+                PushStatement(new CStatment(CExpression.PopExpression(), PopStatement(), PopStatement()));
             }
-
-            throw new NotImplementedException();
         }
 
         //Executes code according to the value of an integral argument.
@@ -92,14 +196,16 @@ namespace Atlas.AtlasCC
         //switch ( expression ) statement
         // expression must be of integral type
         //break can be used in this statement
+        //IMPLIMENTATION NOTE: right now, switch statments just tun into a bunch of if/else if's. i know there are optimized way to do this,
+        //but optimization is not a priority of atlas right now
         public static void BeginSwitchStatement()
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException("switch not implimented yet");
         }
 
         public static void EndSwitchStatement()
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException("switch not implimented yet");
         }
 
         //http://en.cppreference.com/w/c/language/while
@@ -108,14 +214,87 @@ namespace Atlas.AtlasCC
         // expression must be of scalar type
         //As with all other selection and iteration statements, the while statement establishes block scope: 
         // any identifier introduced in the expression goes out of scope after the statement.
+
+        /*
+         * {
+         *      loopCheck:  if(expression) goto loopBody;
+         *                  goto endloop:
+         *      loopBody:   statment;
+         *                  goto loopCheck;
+         *      endLoop:    {};
+         * }
+         */
+
+        private static Stack<CIdentifier> loopChechLabels = new Stack<CIdentifier>();
+        private static Stack<CIdentifier> loopBodyLabels = new Stack<CIdentifier>();
+        private static Stack<CIdentifier> endLoopLabels = new Stack<CIdentifier>();
+
+        private static void EnterLoop()
+        {
+            loopChechLabels.Push(CIdentifier.CreatLabelInFunctionScope(CIdentifier.AutoGenerateLabel("LoopCheck")));
+            loopBodyLabels.Push(CIdentifier.CreatLabelInFunctionScope(CIdentifier.AutoGenerateLabel("LoopBody")));
+            endLoopLabels.Push(CIdentifier.CreatLabelInFunctionScope(CIdentifier.AutoGenerateLabel("EndLoop")));
+        }
+
+        private static void ExitLoop()
+        {
+            loopChechLabels.Pop();
+            loopBodyLabels.Pop();
+            endLoopLabels.Pop();
+        }
+        
         public static void BeginWhileLoopStatement()
         {
-            throw new NotImplementedException();
+            BeginCompoundStatement();
+            EnterLoop();
         }
 
         public static void EndWhileLoopStatement()
         {
-            throw new NotImplementedException();
+            //loopCheck:  if(expression) goto loopBody;
+            if(!CExpression.PeekExpression().IsScalar)
+            {
+                throw new SemanticException("condition expression in loop must be scalar");
+            }
+
+            CStatment gotoBody = new CStatment(loopBodyLabels.Peek());
+
+            PushStatement(gotoBody);
+            IfStatement(false);
+
+            CStatment ifCheckGotoBody = PopStatement();
+            ifCheckGotoBody.AddLabel(loopChechLabels.Peek().Name);
+
+            //goto endloop:
+            CStatment gotoEnd = new CStatment(endLoopLabels.Peek());
+
+            //loopBody:   statment;
+            CStatment loopBody = PopStatement();
+            loopBody.AddLabel(loopBodyLabels.Peek().Name);
+
+            //goto loopCheck;
+            CStatment gotoCheck = new CStatment(loopChechLabels.Peek());
+
+            //endLoop:    {};
+            CStatment end = new CStatment();
+            end.AddLabel(endLoopLabels.Peek().Name);
+
+            PushStatement(ifCheckGotoBody);
+            PushStatement(gotoEnd);
+            PushStatement(loopBody);
+            PushStatement(gotoCheck);
+            PushStatement(end);
+
+            ExitLoop();
+            EndCompoundStatement(new List<CCompoundStatmentItemType> 
+                { 
+                    CCompoundStatmentItemType.Statment,
+                    CCompoundStatmentItemType.Statment,
+                    CCompoundStatmentItemType.Statment,
+                    CCompoundStatmentItemType.Statment,
+                    CCompoundStatmentItemType.Statment
+                }
+            );
         }
 
         //http://en.cppreference.com/w/c/language/do
@@ -124,14 +303,56 @@ namespace Atlas.AtlasCC
         // expression must be of scalar type
         //As with all other selection and iteration statements, the dowhile statement establishes block scope: 
         // any identifier introduced in the expression goes out of scope after the statement.
+
+        /*
+        * {
+        *      loopBody:    statment;
+        *      loopCheck:   if(expression) goto loopBody;
+        *      endLoop:     {};
+        * }
+        */
         public static void BeginDoWhileLoopStatement()
         {
-            throw new NotImplementedException();
+            BeginCompoundStatement();
+            EnterLoop();
         }
 
         public static void EndDoWhileLoopStatement()
         {
-            throw new NotImplementedException();
+            //loopBody:   statment;
+            CStatment loopBody = PopStatement();
+            loopBody.AddLabel(loopBodyLabels.Peek().Name);
+            
+            //loopCheck:  if(expression) goto loopBody;
+            if (!CExpression.PeekExpression().IsScalar)
+            {
+                throw new SemanticException("condition expression in loop must be scalar");
+            }
+
+            CStatment gotoBody = new CStatment(loopBodyLabels.Peek());
+
+            PushStatement(gotoBody);
+            IfStatement(false);
+
+            CStatment ifCheckGotoBody = PopStatement();
+            ifCheckGotoBody.AddLabel(loopChechLabels.Peek().Name);
+
+            //endLoop:    {};
+            CStatment end = new CStatment();
+            end.AddLabel(endLoopLabels.Peek().Name);
+
+            PushStatement(loopBody);
+            PushStatement(ifCheckGotoBody);
+            PushStatement(end);
+
+            ExitLoop();
+            EndCompoundStatement(new List<CCompoundStatmentItemType> 
+                { 
+                    CCompoundStatmentItemType.Statment,
+                    CCompoundStatmentItemType.Statment,
+                    CCompoundStatmentItemType.Statment
+                }
+            );
         }
 
         //http://en.cppreference.com/w/c/language/for
@@ -152,32 +373,74 @@ namespace Atlas.AtlasCC
         //equivalent to
         /*
          * {
-         *  init_claus if decl
-         *  while(cond_expression)
-         *  {
-         *      loop_statement
-         *      iteration_expression;
-         *  }
+         *      init_claus
+         *      while(cond_expression)
+         *      {
+         *          loop_statement
+         *          iteration_expression;
+         *      }
          * }
          */
-        public static void BeginForLoopWithDeclStatement()
-        {
-            throw new NotImplementedException();
-        }
-
-        public static void EndForLoopWithDeclStatement(bool hasConditionExpression, bool hasUpdateExpression)
-        {
-            throw new NotImplementedException();
-        }
-
         public static void BeginForLoopStatement()
         {
-            throw new NotImplementedException();
+            BeginCompoundStatement();
         }
 
-        public static void EndForLoopStatement(bool hasInitExpression, bool hasConditionExpression, bool hasUpdateExpression)
+        public static void EndForLoopStatement(CForInitType initType, bool hasConditionExpression, bool hasIterationExpression)
         {
-            throw new NotImplementedException();
+            List<CCompoundStatmentItemType> compondItems = new List<CCompoundStatmentItemType> { CCompoundStatmentItemType.Statment, CCompoundStatmentItemType.Statment };
+
+            CStatment loopBody = PopStatement();
+
+            CStatment iterationStatement = hasIterationExpression ? new CStatment(CExpression.PopExpression()) : new CStatment();
+            
+            CExpression condition; 
+            if(hasConditionExpression)
+            {
+                condition = CExpression.PopExpression();
+            }
+            else
+            {
+                CExpression.PushConstant("1");
+                condition = CExpression.PopExpression();
+            }
+
+            //init_claus
+            
+            CStatment initClaus;
+            if (initType == CForInitType.Decl)
+            {
+                initClaus = CDeclaration.PopDecl().GetDefinitionStatment();
+            }
+            else if (initType == CForInitType.Expression)
+            {
+                initClaus = new CStatment(CExpression.PopExpression());
+            }
+            else
+            {
+                initClaus = new CStatment();
+            }
+
+            // contruct loop body
+            BeginCompoundStatement();
+            PushStatement(loopBody);
+            PushStatement(iterationStatement);
+            EndCompoundStatement(compondItems);
+
+            CStatment loopbody = PopStatement();
+            
+            // while(cond_expression) loopbody
+            CExpression.PushExpression(condition);
+            PushStatement(loopBody);
+            BeginWhileLoopStatement();
+            EndWhileLoopStatement();
+
+            CStatment whilestat = PopStatement();
+
+            PushStatement(initClaus);
+            PushStatement(whilestat);
+            
+            EndCompoundStatement(compondItems);
         }
 
         //http://en.cppreference.com/w/c/language/goto
@@ -185,16 +448,19 @@ namespace Atlas.AtlasCC
         // goto label ;
         public static void GotoStatement(string label)
         {
-            throw new NotImplementedException();
+            CIdentifier id = CIdentifier.IdentifierFromNameInCurrentScope(label);
+            PushStatement(new CStatment(id));
         }
 
         //http://en.cppreference.com/w/c/language/continue
         //Causes the remaining portion of the enclosing for, while or do-while loop body to be skipped.
         //can only be used in a loop
         //The continue statement causes a jump, as if by goto
+        
+        //goto loopcheck
         public static void ContinueStatement()
         {
-            throw new NotImplementedException();
+            PushStatement(new CStatment(loopChechLabels.Peek()));
         }
 
         //http://en.cppreference.com/w/c/language/break
@@ -202,9 +468,10 @@ namespace Atlas.AtlasCC
         //Appears only within the statement of a loop body (while, do, for) or within the statement of a switch.
         //After this statement the control is transferred to the statement or declaration immediately following the enclosing loop or switch, as if by goto.
         //A break statement cannot be used to break out of multiple nested loops. The goto statement may be used for this purpose.
+        //goto endloop
         public static void BreakStatement()
         {
-            throw new NotImplementedException();
+            PushStatement(new CStatment(endLoopLabels.Peek()));
         }
 
         //http://en.cppreference.com/w/c/language/return
@@ -213,19 +480,21 @@ namespace Atlas.AtlasCC
         //Reaching the end of a function other than main is equivalent to return;
         //Reaching the end of the main function is equivalent to return 0;
         // see http://en.cppreference.com/w/c/language/main_function
-        public static void ReturnStatement()
+        public static void ReturnStatement(bool retVal)
         {
-            throw new NotImplementedException();
+            PushStatement(new CStatment(retVal ? CExpression.PopExpression() : null, true));
         }
 
         public static CStatment PopStatement()
         {
-            throw new NotImplementedException();
+            return statments.Pop();
         }
 
-        private static void PushStatement()
+        private static void PushStatement(CStatment statment)
         {
-            throw new NotImplementedException();
+            statments.Push(statment);
         }
+
+        private static Stack<CStatment> statments = new Stack<CStatment>();
     }
 }

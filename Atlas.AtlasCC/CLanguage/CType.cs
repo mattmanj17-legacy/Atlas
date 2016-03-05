@@ -773,5 +773,30 @@ namespace Atlas.AtlasCC
                 }
             }
         }
+
+        internal static CType DeclareStruct(string idString)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static CType DeclareEnum(string idString)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void BeginDefineStruct()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void EndDefineStruct(string idString)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static void DefineEnum(List<CEnumerator> enums)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

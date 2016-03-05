@@ -1401,11 +1401,18 @@ namespace Atlas.AtlasCC
             return (emitter as CExpression);
         }
 
-        private static void PushExpression(CExpression exp)
+        public static void PushExpression(CExpression exp)
         {
             m_expressions.Push(exp);
         }
 
         private static Stack<CExpression> m_expressions = new Stack<CExpression>();
+
+        public bool IsScalar { get; set; }
+
+        internal static CExpression PeekExpression()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

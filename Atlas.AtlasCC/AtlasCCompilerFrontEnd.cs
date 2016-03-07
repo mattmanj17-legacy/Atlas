@@ -47,18 +47,21 @@ namespace Atlas.AtlasCC
 
                 walker.Walk(this, compilationUnit);
 
-                string exprs = "";
-                foreach (CExpression expr in CExpression.Expressions)
+                string idents = "";
+                 
+                foreach(CIdentifier ident in CIdentifier.FileScopeIdentifiers)
                 {
-                    exprs += expr.Emit();
+                    if (ident.Name.Equals("main"))
+                    {
+                        idents = ident.Emit() + idents;
+                    }
+                    else
+                    {
+                        idents += ident.Emit();
+                    }
                 }
 
-                foreach (CIdentifier ident in CIdentifier.StaticIdentifiers)
-                {
-                    exprs += ident.Emit();
-                }
-
-                return exprs;
+                return idents;
             }
             catch (SemanticException e)
             {
@@ -198,7 +201,13 @@ namespace Atlas.AtlasCC
         public override void EnterTypeSpecifier(CParser.TypeSpecifierContext context)
         {
             //beginstructdef
-            throw new NotImplementedException();
+            if (context.structOrUnionSpecifier() != null)
+            {
+                if (context.structOrUnionSpecifier().structDeclarationList() != null)
+                {
+                    CDeclaration.BeginStructDefinition();
+                }
+            }
         }
 
         public override void ExitTypeSpecifier(CParser.TypeSpecifierContext context)
@@ -244,6 +253,10 @@ namespace Atlas.AtlasCC
                 SematicError(context, "gcc typeof not supported");
             }
             //else, a fundamental type
+            else if(context.typedefName() != null)
+            {
+                CDeclaration.PushTypeDefName(context.GetText());
+            }
             else
             {
                 CDeclaration.PushTypeSpecifier(context.GetText());
@@ -290,8 +303,16 @@ namespace Atlas.AtlasCC
 
         public override void EnterDeclarator(CParser.DeclaratorContext context)
         {
-            //beginFunctionDeclarator 
-            throw new NotImplementedException();
+            //beginFunctionDeclarator
+            CParser.DirectDeclaratorContext directDecltor = context.directDeclarator();
+
+            if (directDecltor.GetText().EndsWith(")"))
+            {
+                if (directDecltor.identifierList() == null)
+                {
+                    CDeclaration.BeginFunctionDeclarator();
+                }
+            }
         }
 
         public override void ExitDeclarator(CParser.DeclaratorContext context)
@@ -317,39 +338,68 @@ namespace Atlas.AtlasCC
             {
                 SematicError(context, "VLA not supported");
             }
-            else if (directDecltor.GetText().EndsWith(")"))
+            else
             {
-                if (directDecltor.identifierList() != null)
+                if(directDecltor.directDeclarator().Identifier() != null)
                 {
-                    SematicError(context, "old style (K&R) style functions not supported");
+                    CDeclaration.PushIdentifierDeclarator(false, directDecltor.directDeclarator().GetText());
+                }
+                
+                if (directDecltor.GetText().EndsWith(")"))
+                {
+                    if (directDecltor.identifierList() != null)
+                    {
+                        SematicError(context, "old style (K&R) style functions not supported");
+                    }
+                    else if (directDecltor.parameterTypeList() != null)
+                    {
+                        CDeclaration.EndFunctionDeclarator(isPointer, GetParameterListCount(directDecltor.parameterTypeList().parameterList()));
+                    }
+                    else
+                    {
+                        CDeclaration.EndFunctionDeclarator(isPointer, 0);
+                    }
                 }
                 else
                 {
-                    CDeclaration.EndFunctionDeclarator(isPointer, GetParameterTypeListCount(directDecltor.parameterTypeList()));
+                    bool hasAssgnExpr = directDecltor.assignmentExpression() != null;
+                    int numTypeQualifiers = GetTypeQualifierListCount(directDecltor.typeQualifierList());
+                    CDeclaration.ArrayDeclarator(isPointer, numTypeQualifiers, hasAssgnExpr);
                 }
+            }
+
+        }
+
+        private int GetParameterListCount(CParser.ParameterListContext parameterListContext)
+        {
+            if(parameterListContext == null)
+            {
+                return 0;
+            }
+            else if (parameterListContext.parameterList() == null)
+            {
+                return 1;
             }
             else
             {
-                bool hasAssgnExpr = directDecltor.assignmentExpression() != null;
-                int numTypeQualifiers = GetTypeQualifierListCount(directDecltor.typeQualifierList());
-                CDeclaration.ArrayDeclarator(isPointer, numTypeQualifiers, hasAssgnExpr);
+                return GetParameterListCount(parameterListContext.parameterList()) + 1;
             }
-
-        }
-
-        private int GetParameterTypeListCount(CParser.ParameterTypeListContext parameterTypeListContext)
-        {
-            throw new NotImplementedException();
-        }
-
-        private IEnumerable<string> GetIdentifiersFromList(CParser.IdentifierListContext identifierListContext)
-        {
-            throw new NotImplementedException();
         }
 
         private int GetTypeQualifierListCount(CParser.TypeQualifierListContext typeQualifierListContext)
         {
-            throw new NotImplementedException();
+            if (typeQualifierListContext == null)
+            {
+                return 0;
+            }
+            else if (typeQualifierListContext.typeQualifierList() == null)
+            {
+                return 1;
+            }
+            else
+            {
+                return GetTypeQualifierListCount(typeQualifierListContext.typeQualifierList()) + 1;
+            }
         }
 
         public override void ExitPointer(CParser.PointerContext context)
@@ -399,7 +449,18 @@ namespace Atlas.AtlasCC
 
         private int GetInitializerListCount(CParser.InitializerListContext initializerListContext)
         {
-            throw new NotImplementedException();
+            if (initializerListContext == null)
+            {
+                return 0;
+            }
+            else if (initializerListContext.initializerList() == null)
+            {
+                return 1;
+            }
+            else
+            {
+                return GetInitializerListCount(initializerListContext.initializerList()) + 1;
+            }
         }
 
         //STATEMENTS
@@ -437,7 +498,26 @@ namespace Atlas.AtlasCC
 
         private List<CCompoundStatmentItemType> GetBlockItemTypes(CParser.BlockItemListContext itmeList)
         {
-            throw new NotImplementedException();
+            List<CCompoundStatmentItemType> result = new List<CCompoundStatmentItemType>();
+            GetBlockItemTypes(itmeList, result);
+            return result;
+        }
+
+        private void GetBlockItemTypes(CParser.BlockItemListContext itmeList, List<CCompoundStatmentItemType> results)
+        {
+            if (itmeList == null)
+            {
+                return;
+            }
+            else if (itmeList.blockItemList() == null)
+            {
+                results.Add(itmeList.blockItem().declaration() == null ? CCompoundStatmentItemType.Statment : CCompoundStatmentItemType.Declaration);
+            }
+            else
+            {
+                GetBlockItemTypes(itmeList.blockItemList(), results);
+                results.Add(itmeList.blockItem().declaration() == null ? CCompoundStatmentItemType.Statment : CCompoundStatmentItemType.Declaration);
+            }
         }
 
         public override void ExitExpressionStatement(CParser.ExpressionStatementContext context)
@@ -452,7 +532,7 @@ namespace Atlas.AtlasCC
         public override void EnterSelectionStatement(CParser.SelectionStatementContext context)
         {
             //beginswitch
-            throw new NotImplementedException();
+            //SWITCH NOT IMPLIMENTED
         }
 
         public override void ExitSelectionStatement(CParser.SelectionStatementContext context)
@@ -474,7 +554,19 @@ namespace Atlas.AtlasCC
             //beginwhile
             //begindowhile
             //begin for
-            throw new NotImplementedException();
+            if (context.GetText().StartsWith("while"))
+            {
+                CStatment.BeginWhileLoopStatement();
+            }
+            //'do' statement 'while' '(' expression ')' ';'
+            else if (context.GetText().StartsWith("do"))
+            {
+                CStatment.BeginDoWhileLoopStatement();
+            }
+            else
+            {
+                CStatment.BeginForLoopStatement();
+            }
         }
 
         public override void ExitIterationStatement(CParser.IterationStatementContext context)

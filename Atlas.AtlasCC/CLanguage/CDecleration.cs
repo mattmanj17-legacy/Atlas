@@ -6,27 +6,51 @@ using System.Threading.Tasks;
 
 namespace Atlas.AtlasCC
 {
-    public enum CDeclarationSpecifierType { Type, Storage, Const, Ignore }
+    public enum CDeclarationSpecifierType { Type, Storage, Const, Ignore, Name }
     public enum CStorageClass { Typedef, Auto, Static, Extern, Ignore }
     public enum CConstType { Const, Ignore }
 
-    public class CInitilizer {
-        private CExpression cExpression;
-        private List<CInitilizer> initlist;
+    public class CInitilizer
+    {
+        public bool IsList
+        {
+            get
+            {
+                return m_isList;
+            }
+        }
+
+        public IEnumerable<CInitilizer> Initilizers
+        {
+            get
+            {
+                return inits;
+            }
+        }
+
+        public CExpression Expression
+        {
+            get
+            {
+                return m_expr;
+            }
+        }
 
         public CInitilizer(CExpression cExpression)
         {
-            // TODO: Complete member initialization
-            this.cExpression = cExpression;
-            throw new NotImplementedException();
+            m_expr = cExpression;
+            m_isList = false;
         }
 
-        public CInitilizer(List<CInitilizer> initlist)
+        public CInitilizer(IEnumerable<CInitilizer> initlist)
         {
-            // TODO: Complete member initialization
-            this.initlist = initlist;
-            throw new NotImplementedException();
+            inits = initlist.ToList();
+            m_isList = true;
         }
+
+        private bool m_isList;
+        private List<CInitilizer> inits;
+        private CExpression m_expr;
     }
 
     public class CEnumerator
@@ -35,20 +59,41 @@ namespace Atlas.AtlasCC
         public CExpression ConstVal;
     }
 
-    public class CParamater { }
+    public class CParamater 
+    {
+        public CParamater(string name, CType type)
+        {
+            this.name = name;
+            this.type = type;
+        }
+        
+        public CType pType
+        {
+            get
+            {
+                return type;
+            }
+        }
+
+        private CType type;
+        public string name;
+    }
+
+    public class CDeclarationSpecifier
+    {
+        public CDeclarationSpecifierType SpeciferType;
+
+        public CType type;
+        public CStorageClass StorageClass;
+        public CConstType ConstType;
+        public string name;
+    }
 
     public class CDeclaration
     {
-        private class CDeclarationSpecifier 
-        {
-            public CDeclarationSpecifierType SpeciferType;  
-            
-            public CType type;
-            public CStorageClass StorageClass;
-            public CConstType ConstType; 
-        }
+        
 
-        private class CDeclarator 
+        private class CDeclarator
         {
             public CTypeModifier TypeModifier;
 
@@ -57,34 +102,100 @@ namespace Atlas.AtlasCC
             public CInitilizer Init;
         }
 
-        private class CTypeModifier 
+        private enum CTypeModifierType
         {
+            Function,
+            Pointer,
+            Array
+
+        }
+
+        private class CTypeModifier
+        {
+            public CTypeModifier(CTypeModifierType type, IEnumerable<CType> paramTypes, CTypeModifier nested)
+            {
+                modifierType = type;
+                m_paramTypes = paramTypes != null ? paramTypes.ToList() : null;
+                m_nestedModifier = nested;
+                arraySize = 0; // todo this will be passed in at contruction time
+            }
+
             public CType ModifyType(CType toModify)
             {
-                throw new NotImplementedException();
+                if(m_nestedModifier != null)
+                {
+                    toModify = m_nestedModifier.ModifyType(toModify);
+                }
+
+                if(modifierType == CTypeModifierType.Function)
+                {
+                    return CType.FunctionSignature(toModify, m_paramTypes);
+                }
+                else if(modifierType == CTypeModifierType.Pointer)
+                {
+                    return CType.PointerTo(toModify);
+                }
+                else if (modifierType == CTypeModifierType.Array)
+                {
+                    return CType.ArrayType(toModify, arraySize);
+                }
+                else
+                {
+                    return toModify;
+                }
             }
 
-            internal CTypeModifier ModifyModifier(CTypeModifier cTypeModifier)
+            public CTypeModifier ModifyModifier(CTypeModifier cTypeModifier)
             {
-                throw new NotImplementedException();
+                if (cTypeModifier == null)
+                {
+                    return this;
+                }
+                else
+                {
+                    SetNested(cTypeModifier);
+                    return this;
+                }
             }
 
-            internal static CTypeModifier ArrayModifier(List<CDeclarationSpecifier> qualifiers, CExpression assgn)
+            public void SetNested(CTypeModifier cTypeModifier)
             {
-                throw new NotImplementedException();
+                if(m_nestedModifier == null)
+                {
+                    m_nestedModifier = cTypeModifier;
+                }
+                else
+                {
+                    m_nestedModifier.SetNested(cTypeModifier);
+                }
             }
 
-            internal static CTypeModifier FunctionModifier(List<CParamater> Params)
+            //makes a type T into T[assgn]
+            //ignore specifers for now
+            public static CTypeModifier ArrayModifier(IEnumerable<CDeclarationSpecifier> qualifiers, CExpression assgn)
             {
-                throw new NotImplementedException();
+                throw new NotSupportedException("we need to have constant expression support befor we can have arrays");
             }
 
-            internal static CTypeModifier PointerModifier(List<CDeclarationSpecifier> quals, CTypeModifier nestedPointer)
+            //makes a type T into T(p1,p2,p3,...,pn)
+            public static CTypeModifier FunctionModifier(IEnumerable<CParamater> Params)
             {
-                throw new NotImplementedException();
+                return new CTypeModifier(CTypeModifierType.Function, Params.Select(p => p.pType), null);
             }
+
+            //makes a type T into T* 
+            //ignore specifers for now
+            public static CTypeModifier PointerModifier(IEnumerable<CDeclarationSpecifier> quals, CTypeModifier nestedPointer)
+            {
+                return new CTypeModifier(CTypeModifierType.Pointer, null, nestedPointer);
+            }
+
+            private CTypeModifierType modifierType;
+            private List<CType> m_paramTypes;
+            private CTypeModifier m_nestedModifier;
+            private int arraySize;
         }
-        
+
         //storage and linkage
         //http://en.cppreference.com/w/c/language/storage_duration
         /*
@@ -204,30 +315,72 @@ namespace Atlas.AtlasCC
         {
             List<CDeclarationSpecifier> specifiers = new List<CDeclarationSpecifier>();
 
-            for(int i = 0 ; i < numSpecifier; i++)
+            for (int i = 0; i < numSpecifier; i++)
             {
                 specifiers.Add(PopDeclSpec());
             }
 
-            CDeclarationSpecifier typeSpec = specifiers.First(spec => spec.SpeciferType == CDeclarationSpecifierType.Type);
+            //TODO hanldle unsigned, signed, long, typedef name
+            IEnumerable<CDeclarationSpecifier> typeSpecs = specifiers.Where(spec => spec.SpeciferType == CDeclarationSpecifierType.Type);
+
+            CType resolvedType = CType.ResolveTypeFromSpecifers(typeSpecs);
+
+            IEnumerable<CDeclarationSpecifier> typeDefNames = specifiers.Where(spec => spec.SpeciferType == CDeclarationSpecifierType.Name);
+
             CDeclarationSpecifier storageClass = specifiers.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Storage);
             CDeclarationSpecifier constQualifier = specifiers.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Const);
 
             List<CDeclarator> declarators = new List<CDeclarator>();
-            
+
             for (int i = 0; i < numDeclarators; i++)
             {
                 declarators.Add(PopDeclarator());
             }
 
-            foreach(CDeclarator declarator in declarators)
+            List<CIdentifier> declared = new List<CIdentifier>();
+            
+            foreach (CDeclarator declarator in declarators)
             {
-                CIdentifier id = CIdentifier.CreateIdentifierInCurrentScope(declarator.Identifer, declarator.TypeModifier.ModifyType(typeSpec.type), storageClass == null ? CStorageClass.Ignore : storageClass.StorageClass, constQualifier == null ? CConstType.Ignore : constQualifier.ConstType);
-                id.Define(declarator.Init);
+                CIdentifier id = CIdentifier.CreateIdentifierInCurrentScope(declarator.Identifer, declarator.TypeModifier != null ?  declarator.TypeModifier.ModifyType(resolvedType) : resolvedType, storageClass == null ? CStorageClass.Ignore : storageClass.StorageClass, constQualifier == null ? CConstType.Ignore : constQualifier.ConstType);
+
+                if (declarator.Init != null)
+                {
+                    id.Init = declarator.Init;
+                }
+
+                declared.Add(id);
             }
 
-            PushDecl(new CDeclaration());
+            if(declared.Count == 0)
+            {
+                if (storageClass != null && storageClass.StorageClass == CStorageClass.Typedef)
+                {
+                    //this is a typedef
+                    foreach(var defSpec in typeDefNames)
+                    {
+                        CType.TypeDef(defSpec.name, resolvedType);
+                    }
+                }
+                else
+                {
+                    //this is a declaration without a declarator
+                    var name = typeDefNames.First();
+
+                    CIdentifier id = CIdentifier.CreateIdentifierInCurrentScope(name.name, resolvedType, storageClass == null ? CStorageClass.Ignore : storageClass.StorageClass, constQualifier == null ? CConstType.Ignore : constQualifier.ConstType);
+
+                    declared.Add(id);
+                }
+            }
+
+            PushDecl(new CDeclaration(declared));
         }
+
+        public CDeclaration(IEnumerable<CIdentifier> idents)
+        {
+            this.idents = idents.ToList();
+        }
+
+        private List<CIdentifier> idents;
 
         public static CDeclaration PopDecl()
         {
@@ -255,7 +408,30 @@ namespace Atlas.AtlasCC
 
         private static CStorageClass StorageClassFromString(string specifier)
         {
-            throw new NotImplementedException();
+            if (specifier.Equals("typedef"))
+            {
+                return CStorageClass.Typedef;
+            }
+            else if (specifier.Equals("extern"))
+            {
+                return CStorageClass.Extern;
+            }
+            else if (specifier.Equals("static"))
+            {
+                return CStorageClass.Static;
+            }
+            else if (specifier.Equals("auto"))
+            {
+                return CStorageClass.Auto;
+            }
+            else if (specifier.Equals("_Thread_local"))
+            {
+                throw new SemanticException("thread_local not supported");
+            }
+            else //register
+            {
+                throw new SemanticException("register not supported");
+            }
         }
 
         //void, arithmetic type, typedefed name
@@ -297,7 +473,22 @@ namespace Atlas.AtlasCC
 
         private static CConstType constTypeFromString(string qualifier)
         {
-            throw new NotImplementedException();
+            if (qualifier.Equals("const"))
+            {
+                return CConstType.Const;
+            }
+            else if (qualifier.Equals("restrict"))
+            {
+                throw new SemanticException("restrict not supported");
+            }
+            else if (qualifier.Equals("volatile"))
+            {
+                throw new SemanticException("volatile not supported");
+            }
+            else //"_Atomic"
+            {
+                throw new SemanticException("atomic not supported");
+            }
         }
 
         private static CDeclarationSpecifier PopDeclSpec()
@@ -342,7 +533,7 @@ namespace Atlas.AtlasCC
         {
             CIdentifier.EnterFunctionScope();
         }
-        
+
         //exit function scope
         public static void EndFunctionDefinition(int numSpecifiers)
         {
@@ -350,7 +541,7 @@ namespace Atlas.AtlasCC
 
             List<CDeclarationSpecifier> specs = new List<CDeclarationSpecifier>();
 
-            for(int i = 0; i  < numSpecifiers; i++)
+            for (int i = 0; i < numSpecifiers; i++)
             {
                 specs.Add(PopDeclSpec());
             }
@@ -506,7 +697,7 @@ namespace Atlas.AtlasCC
 
             List<CDeclarationSpecifier> qualifiers = new List<CDeclarationSpecifier>();
 
-            for(int i = 0; i < numTypeQualifiers; i++)
+            for (int i = 0; i < numTypeQualifiers; i++)
             {
                 qualifiers.Add(PopDeclSpec());
             }
@@ -515,7 +706,7 @@ namespace Atlas.AtlasCC
 
             result.Identifer = old.Identifer;
             result.TypeModifier = CTypeModifier.ArrayModifier(qualifiers, assgn).ModifyModifier(old.TypeModifier);
-            if(isPointer)
+            if (isPointer)
             {
                 result.TypeModifier = PopPointerModifier().ModifyModifier(result.TypeModifier);
             }
@@ -536,7 +727,7 @@ namespace Atlas.AtlasCC
             CIdentifier.ExitFunctionPrototypeScope();
 
             CDeclarator old = PopDeclarator();
-            
+
             List<CParamater> Params = new List<CParamater>();
 
             for (int i = 0; i < numParam; i++)
@@ -549,10 +740,12 @@ namespace Atlas.AtlasCC
             result.Identifer = old.Identifer;
             result.TypeModifier = CTypeModifier.FunctionModifier(Params).ModifyModifier(old.TypeModifier);
 
-            if(isPointer)
+            if (isPointer)
             {
                 result.TypeModifier = PopPointerModifier().ModifyModifier(result.TypeModifier);
             }
+
+            PushDeclarator(result);
         }
 
         private static CDeclarator PopDeclarator()
@@ -580,16 +773,14 @@ namespace Atlas.AtlasCC
             }
 
             CDeclarationSpecifier typeSpec = specs.First(spec => spec.SpeciferType == CDeclarationSpecifierType.Type);
-            CDeclarationSpecifier storageClass = specs.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Storage);
-            CDeclarationSpecifier constQualifier = specs.FirstOrDefault(spec => spec.SpeciferType == CDeclarationSpecifierType.Const);
+
+            //ignore const and register specifiers on params
 
             CDeclarator declarator = PopDeclarator();
 
             CParamater param = CIdentifier.CreateFunctionParameter(
-                declarator.Identifer, 
-                declarator.TypeModifier.ModifyType(typeSpec.type), 
-                storageClass == null ? CStorageClass.Ignore : storageClass.StorageClass, 
-                constQualifier == null ? CConstType.Ignore : constQualifier.ConstType
+                declarator.Identifer,
+                declarator.TypeModifier != null ? declarator.TypeModifier.ModifyType(typeSpec.type) : typeSpec.type
             );
 
             PushParam(param);
@@ -648,7 +839,7 @@ namespace Atlas.AtlasCC
         {
             List<CInitilizer> initlist = new List<CInitilizer>();
 
-            for(int i = 0; i < numInitilizers; i++)
+            for (int i = 0; i < numInitilizers; i++)
             {
                 initlist.Add(inits.Pop());
             }
@@ -658,11 +849,46 @@ namespace Atlas.AtlasCC
 
         static Stack<CInitilizer> inits = new Stack<CInitilizer>();
 
-        internal CStatment GetDefinitionStatment()
+        public CStatment GetDefinitionStatment()
         {
-            throw new NotImplementedException();
+            CStatment.BeginCompoundStatement();
+
+            int stats = 0;
+            foreach(CIdentifier ident in idents)
+            {
+                if(ident.Init != null)
+                {
+                    CStatment.PushStatement(ident.GetDefinitionStatment());
+                    stats++;
+                }
+            }
+
+            List<CCompoundStatmentItemType> items = new List<CCompoundStatmentItemType>();
+
+            for (int i = 0; i < stats; i++)
+            {
+                items.Add(CCompoundStatmentItemType.Statment);
+            }
+
+            CStatment.EndCompoundStatement(items);
+
+            return CStatment.PopStatement();
         }
 
-        public bool IsDefinition { get; set; }
+        public int Size
+        {
+            get
+            {
+                return idents.Where(id => id.Init != null).Select(id => id.Type.Size).Aggregate((a, b) => a + b);
+            }
+        }
+
+        internal static void PushTypeDefName(string p)
+        {
+            var declspec = new CDeclarationSpecifier();
+            declspec.SpeciferType = CDeclarationSpecifierType.Name;
+            declspec.name = p;
+            PushDeclSpec(declspec);
+        }  
     }
 }

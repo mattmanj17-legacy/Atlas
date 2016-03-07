@@ -22,8 +22,9 @@ namespace Atlas.AtlasCC
         /* bool (byte)
          * bool, capable of holding one of the two values: 1(true) and 0(false).
          * Note that conversion to _Bool does not work the same as conversion to other integer types: (bool)0.5 evaluates to 1, whereas (int)0.5 evaluates to ​0​.
+         * NOT IMPLIMETED
          */
-        CBool,
+        //CBool,
         
         /* char (byte)
          * type for character representation. 
@@ -219,14 +220,13 @@ namespace Atlas.AtlasCC
 
         private static void InitBasicType(CTypeClass typeClass)
         {
-            string name = NameFromTypeClass(typeClass);
-            types[NameFromTypeClass(typeClass)] = new CType(typeClass,name);
+            types[NameFromTypeClass(typeClass)] = new CType(typeClass);
         }
         
         public static CType PointerTo(CType cType)
         {
             string name = NameFromPointerToType(cType);
-            if (!types.ContainsKey(name)) types[name] = new CType(CTypeClass.CPointer, name, cType);
+            if (!types.ContainsKey(name)) types[name] = new CType(cType);
 
             return types[name];
         }
@@ -247,12 +247,12 @@ namespace Atlas.AtlasCC
         private readonly CType m_functionReturnType;
         private readonly IReadOnlyList<CType> m_functionArgumentTypes;*/
 
-        private CType(CTypeClass typeClass, string name)
+        //from type class
+        private CType(CTypeClass typeClass)
         {
-            //todo expand this for more complex types
             m_typeClass = typeClass;
             m_isConst = false;
-            m_typeName = name;
+            m_typeName = NameFromTypeClass(typeClass);
             m_arraySize = 0;
             m_containedType = null;
             m_enumConstants = null;
@@ -261,18 +261,81 @@ namespace Atlas.AtlasCC
             m_functionArgumentTypes = null;
         }
 
-        private CType(CTypeClass typeClass, string name, CType containedType)
+        //pointer type
+        private CType(CType containedType)
         {
-            //todo expand this for more complex types
-            m_typeClass = typeClass;
+            m_typeClass = CTypeClass.CPointer;
             m_isConst = false;
-            m_typeName = name;
+            m_typeName = NameFromPointerToType(containedType);
             m_arraySize = 0;
             m_containedType = containedType;
             m_enumConstants = null;
             m_structMembers = null;
             m_functionReturnType = null;
             m_functionArgumentTypes = null;
+        }
+
+        //array type
+        private CType(CType containedType, int arraysize)
+        {
+            m_typeClass = CTypeClass.CArray;
+            m_isConst = false;
+            m_typeName = NameFromArrayToType(containedType, arraysize);
+            m_arraySize = arraysize;
+            m_containedType = containedType;
+            m_enumConstants = null;
+            m_structMembers = null;
+            m_functionReturnType = null;
+            m_functionArgumentTypes = null;
+        }
+
+        //function signature
+        private CType(CType returnType, IEnumerable<CType> paramtypes)
+        {
+            m_typeClass = CTypeClass.CFunction;
+            m_isConst = false;
+            m_typeName = NameFromFuntionSignature(returnType, paramtypes);
+            m_arraySize = 0;
+            m_containedType = null;
+            m_enumConstants = null;
+            m_structMembers = null;
+            m_functionReturnType = returnType;
+            m_functionArgumentTypes = paramtypes.ToList();
+        }
+
+        //struct
+        private CType(string structName)
+        {
+            m_typeClass = CTypeClass.CStruct;
+            m_isConst = false;
+            m_typeName = structName;
+            m_arraySize = 0;
+            m_containedType = null;
+            m_enumConstants = null;
+            m_structMembers = null;
+            m_functionReturnType = null;
+            m_functionArgumentTypes = null;
+            m_structComplete = false;
+        }
+
+        private string NameFromFuntionSignature(CType returnType, IEnumerable<CType> paramtypes)
+        {
+            string name = returnType.TypeName + "(";
+
+            foreach(CType paramType in paramtypes)
+            {
+                name += paramType.TypeName + ", ";
+            }
+
+            name.TrimEnd(' ', ',');
+            name += ")";
+
+            return name;
+        }
+
+        private string NameFromArrayToType(CType containedType, int size)
+        {
+            return "array of " + containedType.TypeName + " of size " + size;
         }
         
         public static CTypeGroups GetTypeGroup(CTypeClass classification)
@@ -314,7 +377,12 @@ namespace Atlas.AtlasCC
 
         public static CType CTypeFromName(string name)
         {
-            if(!types.ContainsKey(name))
+            if(name.EndsWith("*"))
+            {
+                return PointerTo(CTypeFromName(name.Substring(0, name.Length - 1)));
+            }
+            
+            if (!types.ContainsKey(ResolveTypeDef(name)))
             {
                 throw new SemanticException("unrecognized type " + name);
             }
@@ -340,9 +408,9 @@ namespace Atlas.AtlasCC
                 case CTypeClass.CUChar:
                     return "unsigned char";
                 case CTypeClass.CShortInt:
-                    return "short int";
+                    return "short";
                 case CTypeClass.CUShortInt:
-                    return "unsigned short int";
+                    return "unsigned short";
                 case CTypeClass.CInt:
                     return "int";
                 case CTypeClass.CUInt:
@@ -373,8 +441,7 @@ namespace Atlas.AtlasCC
 
         private static string ResolveTypeDef(string name)
         {
-            if (types.ContainsKey(name)) return name;
-            else if (!typeDefs.ContainsKey(name)) throw new SemanticException("type " + name + " is undefined");
+            if (!typeDefs.ContainsKey(name)) return name;
             else return ResolveTypeDef(typeDefs[name]);
         }
 
@@ -552,6 +619,7 @@ namespace Atlas.AtlasCC
 
         public void SpecifyStructMembers(IReadOnlyList<CIdentifier> members)
         {
+            //todo check that all members have unique names
             m_structMembers = members;
             m_structComplete = true;
         }
@@ -776,27 +844,82 @@ namespace Atlas.AtlasCC
 
         internal static CType DeclareStruct(string idString)
         {
-            throw new NotImplementedException();
+            if(!types.ContainsKey(ResolveTypeDef(idString)))
+            {
+                types[ResolveTypeDef(idString)] = new CType(idString);
+            }
+
+            return types[ResolveTypeDef(idString)];
         }
 
         internal static CType DeclareEnum(string idString)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException("enums not implimented yet");
         }
+
+        public static bool InStructDefinition
+        {
+            get
+            {
+                return m_inStruct;
+            }
+        }
+
+        public static List<CIdentifier> GlobalStructMembers = new List<CIdentifier>();
+
+        private static bool m_inStruct = false;
 
         internal static void BeginDefineStruct()
         {
-            throw new NotImplementedException();
+            //todo replace m_instruct with a stack to support nested struct decl
+            m_inStruct = true;
+            m_memberOffsets.Push(0);
         }
 
         internal static void EndDefineStruct(string idString)
         {
-            throw new NotImplementedException();
+            if(!types.ContainsKey(ResolveTypeDef(idString)))
+            {
+                types[ResolveTypeDef(idString)] = new CType(idString);
+            }
+
+            CType structType = types[ResolveTypeDef(idString)];
+
+            structType.SpecifyStructMembers(GlobalStructMembers);
+            GlobalStructMembers.Clear();
+            m_inStruct = false;
+            m_memberOffsets.Pop();
         }
 
         internal static void DefineEnum(List<CEnumerator> enums)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException("enums not implimented yet");
+        }
+
+        internal static CType FunctionSignature(CType toModify, List<CType> m_paramTypes)
+        {
+            return new CType(toModify, m_paramTypes);
+        }
+
+        internal static CType ArrayType(CType toModify, int arraySize)
+        {
+            return new CType(toModify, arraySize);
+        }
+
+        private static Stack<int> m_memberOffsets = new Stack<int>();
+        
+        //TODO test support for nested struct decl
+        internal static int MemberOffset(int size)
+        {
+            int memberoffset = m_memberOffsets.Pop();
+            m_memberOffsets.Push(memberoffset + size);
+            return memberoffset;
+        }
+
+        internal static CType ResolveTypeFromSpecifers(IEnumerable<CDeclarationSpecifier> typeSpecs)
+        {
+            //todo actually impliment this
+            return typeSpecs.First().type;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Atlas.Architecture;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,66 +35,127 @@ namespace Atlas.AtlasCC
             PushStatement(PopStatement().AddLabel(label));
         }
 
+        public override string Emit()
+        {
+            return labels.Emit() + base.Emit();
+        }
+
         private CStatment AddLabel(string label)
         {
-            CIdentifier.CreatLabelInFunctionScope(label);
-            labels.Add(label);
+            labels.Add(new LabelEmitter(label));
             return this;
         }
 
-        private List<string> labels = new List<string>();
-        private List<CStatment> blockBody;
-        private CExpression cExpression;
-        private CStatment cStatment;
-        private CStatment cStatment1;
-        private CStatment cStatment2;
-        private CIdentifier id;
-        private bool p;
+        private EmitterList labels = new EmitterList();
 
-        public CStatment(List<CStatment> blockBody)
+        //compound statment
+        public CStatment(List<CStatment> blockBody, List<int> localVarSizes)
         {
-            // TODO: Complete member initialization
-            this.blockBody = blockBody;
-            throw new NotImplementedException();
+            foreach(var stat in blockBody)
+            {
+                Add(stat);
+            }
+
+            foreach(var size in localVarSizes)
+            {
+                if(size == 0)
+                {
+                    continue;
+                }
+                else if (size == 1)
+                {
+                    Add(new OpCodeEmitter(OpCode.POPB));
+                }
+                else if (size == 2)
+                {
+                    Add(new OpCodeEmitter(OpCode.POPH));
+                }
+                else if (size == 4)
+                {
+                    Add(new OpCodeEmitter(OpCode.POPW));
+                }
+                else
+                {
+                    throw new NotSupportedException("local variables of complex type (struct,array, etc) (size != 1,2,4) not implimented yet");
+                }
+            }
         }
 
-        public CStatment(CExpression cExpression)
+        //expression ststment or return statment
+        public CStatment(CExpression cExpression, bool ret = false)
         {
-            // TODO: Complete member initialization
-            this.cExpression = cExpression;
+            if(ret)
+            {
+                if(cExpression == null)
+                {
+                    Add(new OpCodeEmitter(OpCode.RET));
+                }
+                else
+                {
+                    //todo HANDEL RETURNING STRUCTS
+
+                    if(cExpression.Type.IsStruct)
+                    {
+                        throw new SemanticException("returning structs from functions is not implimented yet");
+                    }
+
+                    Add(cExpression.ToRValue());
+                    Add(new OpCodeEmitter(OpCode.RETV));
+                }
+            }
+            else
+            {
+                Add(cExpression);
+
+                if(cExpression.Type.TypeClass != CTypeClass.CVoid)
+                    Add(new OpCodeEmitter(OpCode.POPW));
+            }
         }
 
+        //if statment
         public CStatment(CExpression cExpression, CStatment cStatment)
         {
-            // TODO: Complete member initialization
-            this.cExpression = cExpression;
-            this.cStatment = cStatment;
+            string ifBody = CIdentifier.AutoGenerateLabel("ifBody");
+            string EndIf = CIdentifier.AutoGenerateLabel("endIf");
+            
+            Add(cExpression);
+            Add(new OpCodeEmitter(OpCode.PUSHW, ifBody));
+            Add(new OpCodeEmitter(OpCode.JIF));
+            Add(new OpCodeEmitter(OpCode.PUSHW, EndIf));
+            Add(new OpCodeEmitter(OpCode.JMP));
+            Add(new LabelEmitter(ifBody));
+            Add(cStatment);
+            Add(new LabelEmitter(EndIf));
         }
 
-        public CStatment(CExpression cExpression, CStatment cStatment1, CStatment cStatment2)
+        //if else statement
+        public CStatment(CExpression cExpression, CStatment ifStat, CStatment ElseStat)
         {
-            // TODO: Complete member initialization
-            this.cExpression = cExpression;
-            this.cStatment1 = cStatment1;
-            this.cStatment2 = cStatment2;
+            string ifBody = CIdentifier.AutoGenerateLabel("ifBody");
+            string EndIf = CIdentifier.AutoGenerateLabel("endIf");
+
+            Add(cExpression);
+            Add(new OpCodeEmitter(OpCode.PUSHW, ifBody));
+            Add(new OpCodeEmitter(OpCode.JIF));
+            Add(ElseStat);
+            Add(new OpCodeEmitter(OpCode.PUSHW, EndIf));
+            Add(new OpCodeEmitter(OpCode.JMP));
+            Add(new LabelEmitter(ifBody));
+            Add(ifStat);
+            Add(new LabelEmitter(EndIf));
         }
 
+        //goto statment
         public CStatment(CIdentifier id)
         {
-            // TODO: Complete member initialization
-            this.id = id;
+            Add(new OpCodeEmitter(OpCode.PUSHW, id.Name));
+            Add(new OpCodeEmitter(OpCode.JMP));
         }
 
-        public CStatment(CExpression cExpression, bool p)
-        {
-            // TODO: Complete member initialization
-            this.cExpression = cExpression;
-            this.p = p;
-        }
-
+        //empty statment
         public CStatment()
         {
-            // TODO: Complete member initialization
+            Clear();
         }
 
         // Case label in a switch statement.
@@ -132,12 +194,14 @@ namespace Atlas.AtlasCC
 
             List<CStatment> blockBody = new List<CStatment>();
 
+            List<int> localVarSizes = new List<int>();
+
             //the item types come in sequential order (top to bottom), but they are sitting on the stack in reverse order (botom to top)
             //revers the list to deal with this
             itemTypes.Reverse();
-            foreach(var itemType in itemTypes)
+            foreach (var itemType in itemTypes)
             {
-                if(itemType == CCompoundStatmentItemType.Statment)
+                if (itemType == CCompoundStatmentItemType.Statment)
                 {
                     CStatment stat = PopStatement();
                     blockBody.Add(stat);
@@ -146,18 +210,17 @@ namespace Atlas.AtlasCC
                 {
                     CDeclaration decl = CDeclaration.PopDecl();
 
-                    if(decl.IsDefinition)
-                    {
-                        //get a statments that initilizes the local variable
-                        blockBody.Add(decl.GetDefinitionStatment());
-                    }
+                    localVarSizes.Add(decl.Size);
+
+                    //get a statments that initilizes the local variable (or does nothing if it is not a definition)
+                    blockBody.Add(decl.GetDefinitionStatment());
                 }
             }
 
             //put the statments back in top to bottom order
             blockBody.Reverse();
 
-            PushStatement(new CStatment(blockBody));
+            PushStatement(new CStatment(blockBody, localVarSizes));
         }
 
         //An expression followed by a semicolon is a statement.
@@ -181,7 +244,10 @@ namespace Atlas.AtlasCC
             //if ( expression ) statement_true else statement_false	
             else
             {
-                PushStatement(new CStatment(CExpression.PopExpression(), PopStatement(), PopStatement()));
+                CStatment els = PopStatement();
+                CStatment fi = PopStatement();
+                
+                PushStatement(new CStatment(CExpression.PopExpression(), fi, els));
             }
         }
 
@@ -231,9 +297,9 @@ namespace Atlas.AtlasCC
 
         private static void EnterLoop()
         {
-            loopChechLabels.Push(CIdentifier.CreatLabelInFunctionScope(CIdentifier.AutoGenerateLabel("LoopCheck")));
-            loopBodyLabels.Push(CIdentifier.CreatLabelInFunctionScope(CIdentifier.AutoGenerateLabel("LoopBody")));
-            endLoopLabels.Push(CIdentifier.CreatLabelInFunctionScope(CIdentifier.AutoGenerateLabel("EndLoop")));
+            loopChechLabels.Push(CIdentifier.CreatLabel(CIdentifier.AutoGenerateLabel("LoopCheck")));
+            loopBodyLabels.Push(CIdentifier.CreatLabel(CIdentifier.AutoGenerateLabel("LoopBody")));
+            endLoopLabels.Push(CIdentifier.CreatLabel(CIdentifier.AutoGenerateLabel("EndLoop")));
         }
 
         private static void ExitLoop()
@@ -242,7 +308,7 @@ namespace Atlas.AtlasCC
             loopBodyLabels.Pop();
             endLoopLabels.Pop();
         }
-        
+
         public static void BeginWhileLoopStatement()
         {
             BeginCompoundStatement();
@@ -251,14 +317,18 @@ namespace Atlas.AtlasCC
 
         public static void EndWhileLoopStatement()
         {
+            CExpression expr = CExpression.PopExpression();
+            CStatment stat = PopStatement();
+            
             //loopCheck:  if(expression) goto loopBody;
-            if(!CExpression.PeekExpression().IsScalar)
+            if (!expr.IsScalar)
             {
                 throw new SemanticException("condition expression in loop must be scalar");
             }
 
             CStatment gotoBody = new CStatment(loopBodyLabels.Peek());
 
+            CExpression.PushExpression(expr);
             PushStatement(gotoBody);
             IfStatement(false);
 
@@ -269,7 +339,7 @@ namespace Atlas.AtlasCC
             CStatment gotoEnd = new CStatment(endLoopLabels.Peek());
 
             //loopBody:   statment;
-            CStatment loopBody = PopStatement();
+            CStatment loopBody = stat;
             loopBody.AddLabel(loopBodyLabels.Peek().Name);
 
             //goto loopCheck;
@@ -295,6 +365,8 @@ namespace Atlas.AtlasCC
                     CCompoundStatmentItemType.Statment
                 }
             );
+
+            PushStatement(PopStatement());
         }
 
         //http://en.cppreference.com/w/c/language/do
@@ -322,7 +394,7 @@ namespace Atlas.AtlasCC
             //loopBody:   statment;
             CStatment loopBody = PopStatement();
             loopBody.AddLabel(loopBodyLabels.Peek().Name);
-            
+
             //loopCheck:  if(expression) goto loopBody;
             if (!CExpression.PeekExpression().IsScalar)
             {
@@ -353,6 +425,8 @@ namespace Atlas.AtlasCC
                     CCompoundStatmentItemType.Statment
                 }
             );
+
+            PushStatement(PopStatement());
         }
 
         //http://en.cppreference.com/w/c/language/for
@@ -393,9 +467,9 @@ namespace Atlas.AtlasCC
             CStatment loopBody = PopStatement();
 
             CStatment iterationStatement = hasIterationExpression ? new CStatment(CExpression.PopExpression()) : new CStatment();
-            
-            CExpression condition; 
-            if(hasConditionExpression)
+
+            CExpression condition;
+            if (hasConditionExpression)
             {
                 condition = CExpression.PopExpression();
             }
@@ -406,7 +480,7 @@ namespace Atlas.AtlasCC
             }
 
             //init_claus
-            
+
             CStatment initClaus;
             if (initType == CForInitType.Decl)
             {
@@ -428,7 +502,7 @@ namespace Atlas.AtlasCC
             EndCompoundStatement(compondItems);
 
             CStatment loopbody = PopStatement();
-            
+
             // while(cond_expression) loopbody
             CExpression.PushExpression(condition);
             PushStatement(loopBody);
@@ -439,8 +513,10 @@ namespace Atlas.AtlasCC
 
             PushStatement(initClaus);
             PushStatement(whilestat);
-            
+
             EndCompoundStatement(compondItems);
+
+            PushStatement(PopStatement());
         }
 
         //http://en.cppreference.com/w/c/language/goto
@@ -456,7 +532,7 @@ namespace Atlas.AtlasCC
         //Causes the remaining portion of the enclosing for, while or do-while loop body to be skipped.
         //can only be used in a loop
         //The continue statement causes a jump, as if by goto
-        
+
         //goto loopcheck
         public static void ContinueStatement()
         {
@@ -490,11 +566,25 @@ namespace Atlas.AtlasCC
             return statments.Pop();
         }
 
-        private static void PushStatement(CStatment statment)
+        public static void PushStatement(CStatment statment)
         {
             statments.Push(statment);
         }
 
         private static Stack<CStatment> statments = new Stack<CStatment>();
+
+        static int m_localVariableOffset = 0;
+        
+        internal static int PushLocal(int size)
+        {
+            int old = m_localVariableOffset;
+            m_localVariableOffset += size;
+            return old;
+        }
+
+        public static void PopLocal(int size)
+        {
+            m_localVariableOffset -= size;
+        }
     }
 }

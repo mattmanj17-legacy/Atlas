@@ -58,6 +58,8 @@
     <Compile Include="CLanguage\CDecleration.cs" />
     <Compile Include="CLanguage\CStatment.cs" />
     <Compile Include="CLanguage\CType.cs" />
+    <Compile Include="CLanguage\StringEmitter.cs" />
+    <Compile Include="CLanguage\VariableEmitter.cs" />
     <Compile Include="Emitters\EmitterList.cs" />
     <Compile Include="CLanguage\CExpression.cs" />
     <Compile Include="AtlasCCompilerFrontEnd.cs" />

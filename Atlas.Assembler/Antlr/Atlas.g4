@@ -66,15 +66,20 @@ instructionCode
 	| JIF
 	| PUSHBP
 	| COPY
-	| POP
+	| POPB
+	| POPH
+	| POPW
 	| BEGINARGS
 	| CALL
+	| SYSCALL
 	| RETV
 	| RET;
 
 //instructions that require an argument
 instructionCodeNeedsArg  
-	: PUSH;
+	: PUSHB
+	| PUSHH
+	| PUSHW;
 
 /*
  * Lexer Rules
@@ -112,14 +117,19 @@ JMP:'JMP';
 JIF:'JIF' ;
 PUSHBP:'PUSHBP'; 
 COPY:'COPY';
-POP:'POP' ;
+POPW:'POPW' ;
+POPH:'POPH' ;
+POPB:'POPB' ;
 BEGINARGS:'BEGINARGS'; 
 CALL:'CALL' ;
+SYSCALL:'SYSCALL';
 RETV:'RETV' ;
 RET:'RET' ;
 
 //instructions (one arg)
-PUSH:'PUSH';
+PUSHW:'PUSHW';
+PUSHH:'PUSHH';
+PUSHB:'PUSHB';
 
 //Literals
 //numeric

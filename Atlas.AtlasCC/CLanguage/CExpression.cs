@@ -25,7 +25,7 @@ namespace Atlas.AtlasCC
         }
 
         public CType Type;
-        public readonly ValueCatagory valueCatagory;
+        public ValueCatagory valueCatagory;
 
         //A modifiable lvalue is any lvalue expression of complete, non-array type which is not const-qualified, and, if it's a struct, has no members that are const-qualified, recursively.
         //Only modifiable lvalue expressions may be used as arguments to increment/decrement, and as left-hand arguments of assignment and compound assignment operators.
@@ -196,7 +196,26 @@ namespace Atlas.AtlasCC
 
         internal void ToUnsigned()
         {
-            throw new NotImplementedException();
+            if(Type.TypeClass == CTypeClass.CChar || Type.TypeClass == CTypeClass.CSChar)
+            {
+                ConvertToType(CType.FromTypeClass(CTypeClass.CUChar));
+            }
+            else if (Type.TypeClass == CTypeClass.CShortInt)
+            {
+                ConvertToType(CType.FromTypeClass(CTypeClass.CUShortInt));
+            }
+            else if (Type.TypeClass == CTypeClass.CInt)
+            {
+                ConvertToType(CType.FromTypeClass(CTypeClass.CUInt));
+            }
+            else if (Type.TypeClass == CTypeClass.CLongInt)
+            {
+                ConvertToType(CType.FromTypeClass(CTypeClass.CULongInt));
+            }
+            else if (Type.TypeClass == CTypeClass.CLongLongInt)
+            {
+                ConvertToType(CType.FromTypeClass(CTypeClass.CULongLongInt));
+            }
         }
 
         //operators (manipulates expressions)
@@ -402,7 +421,7 @@ namespace Atlas.AtlasCC
             }
             result.Add(new OpCodeEmitter(OpCode.COPY));
             result.Add(new OpCodeEmitter(expr.GetLoadOperation()));
-            result.Add(new OpCodeEmitter(OpCode.PUSH, (expr.Type.IsPointer ? expr.Type.ContainedType.Size : 1).ToString()));
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, (expr.Type.IsPointer ? expr.Type.ContainedType.Size : 1).ToString()));
 
             if (incrementType == IncrementType.Increment)
             {
@@ -590,7 +609,7 @@ namespace Atlas.AtlasCC
                     throw new SemanticException("cannot add/substract expresion of these types");
                 }
 
-                arith.Add(new OpCodeEmitter(OpCode.PUSH, ptr.Type.ContainedType.Size.ToString()));
+                arith.Add(new OpCodeEmitter(OpCode.PUSHW, ptr.Type.ContainedType.Size.ToString()));
                 arith.Add(new OpCodeEmitter(OpCode.MUL));
 
                 CExpression result = new CExpression(ptr.Type, ValueCatagory.RValue);
@@ -752,11 +771,11 @@ namespace Atlas.AtlasCC
 
             //push end
             string label = CIdentifier.AutoGenerateLabel("LogicalAndEnd");
-            result.Add(new OpCodeEmitter(OpCode.PUSH, label));
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, label));
             //jif
             result.Add(new OpCodeEmitter(OpCode.JIF));
             //pop
-            result.Add(new OpCodeEmitter(OpCode.POP));
+            result.Add(new OpCodeEmitter(OpCode.POPW));
             //(rhs)
             result.Add(rhs);
             //end:
@@ -800,11 +819,11 @@ namespace Atlas.AtlasCC
             result.Add(new OpCodeEmitter(OpCode.COPY));
             //push end
             string label = CIdentifier.AutoGenerateLabel("LogicalOrEnd");
-            result.Add(new OpCodeEmitter(OpCode.PUSH, label));
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, label));
             //jif
             result.Add(new OpCodeEmitter(OpCode.JIF));
             //pop
-            result.Add(new OpCodeEmitter(OpCode.POP));
+            result.Add(new OpCodeEmitter(OpCode.POPW));
             //(rhs)
             result.Add(rhs);
             //end:
@@ -854,7 +873,7 @@ namespace Atlas.AtlasCC
         public static void LessThanOrEqualOperator()
         {
             CExpression rhs = PopExpression().ToRValue();
-            rhs.Add(new OpCodeEmitter(OpCode.PUSH, "1")); //todo remember this will break if we ever go to floats
+            rhs.Add(new OpCodeEmitter(OpCode.PUSHW, "1")); //todo remember this will break if we ever go to floats
             rhs.Add(new OpCodeEmitter(OpCode.ADD));
             PushExpression(rhs);
             LessThanOperator();
@@ -912,7 +931,7 @@ namespace Atlas.AtlasCC
 
             result.Add(array);
             result.Add(index);
-            result.Add(new OpCodeEmitter(OpCode.PUSH, elementSize.ToString()));
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, elementSize.ToString()));
             result.Add(new OpCodeEmitter(OpCode.MUL));
             result.Add(new OpCodeEmitter(OpCode.ADD));
 
@@ -1000,7 +1019,7 @@ namespace Atlas.AtlasCC
 
                 CExpression result = new CExpression(ident.Type, ValueCatagory.LValue);
                 result.Add(obj);
-                result.Add(new OpCodeEmitter(OpCode.PUSH, ident.StructOffset.ToString()));
+                result.Add(new OpCodeEmitter(OpCode.PUSHW, ident.StructOffset.ToString()));
                 result.Add(new OpCodeEmitter(OpCode.ADD));
 
                 PushExpression(result);
@@ -1047,10 +1066,16 @@ namespace Atlas.AtlasCC
 
             CExpression functionName = PopExpression();
 
-            //functionName	-	any expression of pointer-to-function type
+            if(functionName.Type.TypeClass == CTypeClass.CFunction)
+            {
+                functionName.Type = CType.PointerTo(functionName.Type);
+                functionName.valueCatagory = ValueCatagory.RValue;
+            }
+
+            //functionName	-	any expression of pointer-to-function type or function type
             if (!functionName.Type.IsFunctionPointer)
             {
-                throw new SemanticException("canot call expresion of type " + functionName.Type.TypeName + ": expected pointer to function");
+                throw new SemanticException("canot call expresion of type " + functionName.Type.TypeName + ": expected pointer to function or function");
             }
 
             IReadOnlyList<CType> argTyps = functionName.Type.ContainedType.FunctionArgumentTypes;
@@ -1069,7 +1094,7 @@ namespace Atlas.AtlasCC
             //that converts the unqualified type of the corresponding argument to the type of the parameter
             for (int i = 0; i < numPassedArguments; i++)
             {
-                if (!arguments[i].CanConvertImplicitlyToType(argTyps[1]))
+                if (!arguments[i].CanConvertImplicitlyToType(argTyps[i]))
                 {
                     throw new SemanticException("error in " + i + "th argument: cannot convert argument of type " + arguments[i].Type + " to " + argTyps[i]);
                 }
@@ -1118,7 +1143,7 @@ namespace Atlas.AtlasCC
 
             CExpression result = new CExpression(rhs.Type, ValueCatagory.RValue);
             result.Add(lhs);
-            result.Add(new OpCodeEmitter(OpCode.POP));
+            result.Add(new OpCodeEmitter(OpCode.POPW));
             result.Add(rhs);
 
             PushExpression(result);
@@ -1208,7 +1233,7 @@ namespace Atlas.AtlasCC
 
             //PUSH FALSECASE
             string falseCase = CIdentifier.AutoGenerateLabel("conditionalFalseCase");
-            result.Add(new OpCodeEmitter(OpCode.PUSH, falseCase));
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, falseCase));
 
             //JIF
             result.Add(new OpCodeEmitter(OpCode.JIF));
@@ -1217,7 +1242,7 @@ namespace Atlas.AtlasCC
             result.Add(exprt);
             //pushw ENDCONDITION
             string end = CIdentifier.AutoGenerateLabel("endConditional");
-            result.Add(new OpCodeEmitter(OpCode.PUSH, end));
+            result.Add(new OpCodeEmitter(OpCode.PUSHW, end));
             //JMP
             result.Add(new OpCodeEmitter(OpCode.JMP));
             //FALSECASE:
@@ -1237,7 +1262,7 @@ namespace Atlas.AtlasCC
             CType type = CType.CTypeFromName(typeName);
 
             CExpression expr = new CExpression(CType.FromTypeClass(CTypeClass.CUInt), ValueCatagory.RValue);
-            expr.Add(new OpCodeEmitter(OpCode.PUSH, type.Size.ToString()));
+            expr.Add(new OpCodeEmitter(OpCode.PUSHW, type.Size.ToString()));
             PushExpression(expr);
         }
 
@@ -1277,7 +1302,12 @@ namespace Atlas.AtlasCC
 
             //http://en.cppreference.com/w/c/language/string_literal
 
-            throw new NotSupportedException("string literals not implimented yet");
+            CIdentifier stringId = CIdentifier.InternString(literals.Aggregate((a,b)=>a+b));
+            CExpression expr = new CExpression(CType.PointerTo(CType.FromTypeClass(CTypeClass.CChar)), ValueCatagory.RValue);
+
+            expr.Add(new OpCodeEmitter(OpCode.PUSHW, stringId.Name));
+
+            PushExpression(expr);
         }
 
         public static void PushIdentifier(string idString)
@@ -1297,13 +1327,13 @@ namespace Atlas.AtlasCC
             {
                 //get address of local variable relative to stack pointer
                 result.Add(new OpCodeEmitter(OpCode.PUSHBP));
-                result.Add(new OpCodeEmitter(OpCode.PUSH, id.StackPointerOffset.ToString()));
+                result.Add(new OpCodeEmitter(OpCode.PUSHW, id.StackPointerOffset.ToString()));
                 result.Add(new OpCodeEmitter(OpCode.ADD));
             }
             else
             {
                 //the assembler will take care of figuring out the addresses of global variables
-                result.Add(new OpCodeEmitter(OpCode.PUSH, id.Name));
+                result.Add(new OpCodeEmitter(OpCode.PUSHW, id.Name));
             }
 
             PushExpression(result);
@@ -1322,7 +1352,7 @@ namespace Atlas.AtlasCC
             CType type = TypeFromLiteral(literal);
 
             CExpression constant = new CExpression(type, ValueCatagory.RValue);
-            constant.Add(new OpCodeEmitter(OpCode.PUSH, literal));
+            constant.Add(new OpCodeEmitter(OpCode.PUSHW, literal));
 
             PushExpression(constant);
         }
@@ -1408,11 +1438,17 @@ namespace Atlas.AtlasCC
 
         private static Stack<CExpression> m_expressions = new Stack<CExpression>();
 
-        public bool IsScalar { get; set; }
+        public bool IsScalar
+        {
+            get
+            {
+                return Type.InTypeGroup(CTypeGroups.CScalar);
+            }
+        }
 
         internal static CExpression PeekExpression()
         {
-            throw new NotImplementedException();
+            return m_expressions.Peek();
         }
     }
 }

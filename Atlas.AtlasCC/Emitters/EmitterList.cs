@@ -8,9 +8,16 @@ namespace Atlas.AtlasCC
 {
     public class EmitterList : List<IEmitter>, IEmitter
     {
-        public string Emit()
+        public virtual string Emit()
         {
-            return this.Select(emitter => emitter.Emit()).Aggregate((a, b) => a + b);
+            if (Count > 0)
+            {
+                return this.Select(emitter => emitter.Emit()).Aggregate((a, b) => a + b);
+            }
+            else
+            {
+                return "";
+            }
         }
     }
 }

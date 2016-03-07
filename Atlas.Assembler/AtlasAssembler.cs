@@ -306,8 +306,12 @@ namespace Atlas.Assembler
         {
             switch (code)
             {
-                case OpCode.PUSH:
+                case OpCode.PUSHW:
                     return 4;
+                case OpCode.PUSHH:
+                    return 2;
+                case OpCode.PUSHB:
+                    return 1;
                 default:
                     return 0;
             }

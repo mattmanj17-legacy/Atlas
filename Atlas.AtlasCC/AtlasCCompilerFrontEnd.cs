@@ -604,17 +604,17 @@ namespace Atlas.AtlasCC
                 SafeCall(context, () => CStatment.GotoStatement(context.Identifier().GetText()));
             }
             //'continue' ';'
-            if (context.GetText().StartsWith("continue"))
+            else if (context.GetText().StartsWith("continue"))
             {
                 SafeCall(context, CStatment.ContinueStatement);
             }
             //'break' ';'
-            if (context.GetText().StartsWith("break"))
+            else if (context.GetText().StartsWith("break"))
             {
                 SafeCall(context, CStatment.BreakStatement);
             }
             //'return' expression? ';'
-            if (context.GetText().StartsWith("return"))
+            else if (context.GetText().StartsWith("return"))
             {
                 SafeCall(context, () => CStatment.ReturnStatement(context.expression() != null));
             }

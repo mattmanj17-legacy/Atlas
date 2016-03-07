@@ -1,8 +1,7 @@
-﻿//system calls
+﻿//SYSTEMCALLS
 //to make a system call, call a function which has the correct parameters
 //then call SystemCall. writing to address -1 causes a system call
 //system call table
-// 1 : print(char* c) --- prints a null terminated string to the console;
 
 void SystemCall(int syscallNumber)
 {
@@ -11,46 +10,45 @@ void SystemCall(int syscallNumber)
 	return;
 }
 
+// 1 : print(char* c) --- prints a null terminated string to the console, and a newline;
 void print(char* toPrint)
 {
 	(SystemCall(1));
 	return;
 }
 
-char* c;
-
-//int fib(int n);
-
-char fib(char n)
+// 2 : printInt(int c) --- prints a number to the console and a newline;
+void printInt(int toPrint)
 {
-	//n = 5;
-	return n;
+	(SystemCall(2));
+	return;
+}
+
+//-------------------------------------------
+
+int fib(int n);
+
+int fib(int n)
+{
+	if (n < 3) return 1;
+	else return fib(n - 1) + fib(n - 2);
 }
 
 int main()
 {
-	c = "hello world";
+	(print("start main"));
 
-	char i = 0;
-	
-	while (i < 10)
+	int i = 1;
+	int fibi = 0;
+
+	while (i < 1000)
 	{
-		(print(c));
+		fibi = fib(i);
+		(printInt(fibi));
 		i++;
 	}
 
-	i = 1;
+	(print("done"));
 
-	c[1] = 0;
-
-	while (i < 10)
-	{
-		c[0] = i + 48;
-		(print(c));
-		//c[0] = fib(i) + 48;
-		//(print(c));
-		i = (i + 1);
-	}
-	
 	while (1){}
 }

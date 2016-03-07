@@ -39,6 +39,16 @@ namespace Atlas.VM
                 }
                 Console.WriteLine();
             }
+            else if(value == 2)
+            {
+                if (previosFrame.Length != 4)
+                {
+                    throw new InvalidOperationException("incorect arguments passed to printint system call");
+                }
+
+                int toPrint = IntFromBytes(previosFrame[3], previosFrame[2], previosFrame[1], previosFrame[0]);
+                Console.WriteLine(toPrint);
+            }
             else
             {
                 throw new InvalidOperationException("invalid system call number");
@@ -51,12 +61,6 @@ namespace Atlas.VM
 
             string source = File.ReadAllText(args[0]);
 
-            //Console.WriteLine("original c code\n");
-            //Console.WriteLine(source);
-
-            //Console.Write("Press any key to begin compiling...");
-            //Console.ReadLine();
-
             string compiled = compiler.Compile(new AntlrInputStream(source));
 
             if(compiled == null)
@@ -67,7 +71,7 @@ namespace Atlas.VM
             Console.WriteLine("compiled program\n");
             Console.WriteLine(compiled);
 
-            Console.Write("Press any key to begin assembling...");
+            Console.Write("Press any key to begin emulation...");
             Console.ReadLine();
 
             AtlasAssembler assembler = new AtlasAssembler();
@@ -79,35 +83,28 @@ namespace Atlas.VM
                 return;
             }
 
-            //.WriteLine("assembled program bytes\n");
-            //foreach(byte b in program)
-            //{
-                //Console.WriteLine(b.ToString("X2"));
-            //
-
-            //Console.Write("Press any key to begin emulation...");
-            //Console.ReadLine();
-
             VirtualAtlasCPU cpu = new VirtualAtlasCPU();
             cpu.LoadProgram(program);
 
-            //Console.Clear();
+            Console.Clear();
 
             while(true)
             {
-                //Console.Clear();
-                //Console.WriteLine(cpu.cout);
-                //.WriteLine("--------------------------");
-                //.WriteLine("Current Instruction : " + cpu.GetCurrentInstruction());
-                //Console.WriteLine("Stack Frame : ");
-                //byte[] frame = cpu.GetStackFrame().Reverse().ToArray();
-                //foreach(byte b in frame)
-                //{
-                    //Console.WriteLine(b.ToString("X2"));
-                //}
-                //Console.Write("Press any key to single step...");
-                //Console.ReadLine();
-                //Thread.Sleep(500);
+                
+                /*
+                Console.Clear();
+                Console.WriteLine(cpu.cout);
+                Console.WriteLine("--------------------------");
+                Console.WriteLine("Current Instruction : " + cpu.GetCurrentInstruction());
+                Console.WriteLine("Stack Frame : ");
+                byte[] frame = cpu.GetStackFrame().Reverse().ToArray();
+                foreach(byte b in frame)
+                {
+                    Console.WriteLine(b.ToString("X2"));
+                }
+                Console.Write("Press any key to single step...");
+                Console.ReadLine();
+                //Thread.Sleep(500); */
                 cpu.ClockPulse();
             }
         }

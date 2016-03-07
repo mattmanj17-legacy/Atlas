@@ -73,7 +73,7 @@ namespace Atlas.Architecture
         public const MemSize InstructionSize = MemSize.BYTE;
         public const MemSize MaxLiteralSize = MemSize.WORD;
 
-        public static readonly int StackSize = MemSizeToInt(MemSize.BYTE) * 64; // 64K
+        public static readonly int StackSize = MemSizeToInt(MemSize.BYTE) * 64 * 1024; // 64K
 
         public static int MemSizeToInt(MemSize size)
         {
@@ -147,10 +147,10 @@ namespace Atlas.Architecture
             int stackArgA = MemValue(MemSize.WORD, StackPointer - 2 * MemSizeToInt(OperandSize));
 
             // the return address, stored one word below the cached base pointer (see implimentation of BEGINARGS and CALL)
-            int returnAddress = MemValue(MemSize.WORD, cahcedbp - MemSizeToInt(MemSize.WORD));
+            int returnAddress = MemValue(MemSize.WORD, BasePointer - MemSizeToInt(MemSize.WORD));
 
             // the old base pointer, stored two words below the cahced base pointer (see implimentation of BEGINARGS and CALL)
-            int oldBp = MemValue(MemSize.WORD, cahcedbp - 2 * MemSizeToInt(MemSize.WORD));
+            int oldBp = MemValue(MemSize.WORD, BasePointer - 2 * MemSizeToInt(MemSize.WORD));
 
             /*decode*/
             //what is the new stack pointer

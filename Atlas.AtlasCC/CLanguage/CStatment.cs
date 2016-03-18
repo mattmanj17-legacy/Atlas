@@ -586,5 +586,20 @@ namespace Atlas.AtlasCC
         {
             m_localVariableOffset -= size;
         }
+
+        internal static void AsmStatement(string asm)
+        {
+            string[] parts = asm.Trim('"').Split();
+
+            OpCode code = (OpCode)Enum.Parse(typeof(OpCode), parts[0]);
+            string arg = parts.Length > 1 ? parts[1] : "";
+
+            OpCodeEmitter asmOp = new OpCodeEmitter(code, arg);
+
+            CStatment stat = new CStatment();
+            stat.Add(asmOp);
+
+            PushStatement(stat);
+        }
     }
 }

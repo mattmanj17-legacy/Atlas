@@ -451,6 +451,7 @@ statement
     |   selectionStatement
     |   iterationStatement
     |   jumpStatement
+	|	'asm' '(' StringLiteral ')'';'
     |   ('__asm' | '__asm__') ('volatile' | '__volatile__') '(' (logicalOrExpression (',' logicalOrExpression)*)? (':' (logicalOrExpression (',' logicalOrExpression)*)?)* ')' ';'
     ;
 

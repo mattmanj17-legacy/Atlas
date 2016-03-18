@@ -145,7 +145,7 @@ namespace Atlas.Assembler
         public override void ExitInstruction(AtlasParser.InstructionContext context)
         {
             OpCode opCode = OpcodeFromInstruction(context);
-            UInt32 argSize = ArgSizeFromOpCode(opCode);
+            UInt32 argSize = (UInt32)AtlasCPU.ArgSizeFromOpCode(opCode);
             bool needsArg = argSize != 0;
 
             if (m_currentPass == AssemblerSemanticAnalysisPass.RecordLabels)
@@ -299,22 +299,6 @@ namespace Atlas.Assembler
             }
 
             return val;
-        }
-
-        //utility functions for working with opcodes
-        public UInt32 ArgSizeFromOpCode(OpCode code)
-        {
-            switch (code)
-            {
-                case OpCode.PUSHW:
-                    return 4;
-                case OpCode.PUSHH:
-                    return 2;
-                case OpCode.PUSHB:
-                    return 1;
-                default:
-                    return 0;
-            }
         }
 
         public OpCode OpcodeFromString(string s)

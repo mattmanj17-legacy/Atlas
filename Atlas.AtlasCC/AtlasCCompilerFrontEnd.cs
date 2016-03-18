@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using System.IO;
+using Atlas.Architecture;
 
 //I used alot of documentation from this site
 //http://en.cppreference.com/w/c/language
@@ -466,6 +467,16 @@ namespace Atlas.AtlasCC
         //STATEMENTS
         //http://en.cppreference.com/w/c/language/statements
 
+        public override void ExitStatement(CParser.StatementContext context)
+        {
+            if(context.StringLiteral() != null)
+            {
+                //'asm' '(' StringLiteral ')'';'
+
+                CStatment.AsmStatement(context.StringLiteral().GetText());
+            }
+        }
+        
         public override void ExitLabeledStatement(CParser.LabeledStatementContext context)
         {
             //Identifier ':' statement

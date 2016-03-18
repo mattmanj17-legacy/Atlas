@@ -71,7 +71,6 @@ instructionCode
 	| POPW
 	| BEGINARGS
 	| CALL
-	| SYSCALL
 	| RETV
 	| RET;
 
@@ -79,7 +78,8 @@ instructionCode
 instructionCodeNeedsArg  
 	: PUSHB
 	| PUSHH
-	| PUSHW;
+	| PUSHW
+	| SYSCALL;
 
 /*
  * Lexer Rules
@@ -122,7 +122,6 @@ POPH:'POPH' ;
 POPB:'POPB' ;
 BEGINARGS:'BEGINARGS'; 
 CALL:'CALL' ;
-SYSCALL:'SYSCALL';
 RETV:'RETV' ;
 RET:'RET' ;
 
@@ -130,6 +129,7 @@ RET:'RET' ;
 PUSHW:'PUSHW';
 PUSHH:'PUSHH';
 PUSHB:'PUSHB';
+SYSCALL:'SYSCALL';
 
 //Literals
 //numeric

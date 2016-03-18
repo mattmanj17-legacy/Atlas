@@ -55,6 +55,7 @@ namespace Atlas.Architecture
         POPW,
         BEGINARGS,
         CALL,
+        SYSCALL,
         RETV,
         RET
     }
@@ -67,13 +68,29 @@ namespace Atlas.Architecture
         WORD = 4
     }
 
-    public class AtlasCPU
+    public abstract class AtlasCPU
     {
         public const MemSize OperandSize = MemSize.WORD;
         public const MemSize InstructionSize = MemSize.BYTE;
-        public const MemSize MaxLiteralSize = MemSize.WORD;
 
         public static readonly int StackSize = MemSizeToInt(MemSize.BYTE) * 64 * 1024; // 64K
+
+        //utility functions for working with opcodes
+        public static int ArgSizeFromOpCode(OpCode code)
+        {
+            switch (code)
+            {
+                case OpCode.PUSHW:
+                    return 4;
+                case OpCode.PUSHH:
+                    return 2;
+                case OpCode.PUSHB:
+                case OpCode.SYSCALL:
+                    return 1;
+                default:
+                    return 0;
+            }
+        }
 
         public static int MemSizeToInt(MemSize size)
         {
@@ -109,29 +126,21 @@ namespace Atlas.Architecture
             return (OpCode)MemValue(MemSize.BYTE, ProgramCounter);
         }
 
-        public byte[] GetStackFrame(int deapth = 0, int bp = -1, int sp = -1)
+        private byte[] GetStackFrame()
         {
-            bp = bp == -1 ? BasePointer : bp;
-            sp = sp == -1 ? StackPointer : sp;
-            
-            if (deapth <= 0)
-            {
-                return m_mem.ToList().GetRange(bp, sp - bp).ToArray();
-            }
-            else
-            {
-                sp = bp - 2 * MemSizeToInt(MemSize.WORD);
-                bp = MemValue(MemSize.WORD,sp);
-
-                return GetStackFrame(deapth - 1, bp, sp);
-            }
+            var ret = m_mem.ToList().GetRange(BasePointer, StackPointer - BasePointer).ToArray();
+            return ret;
         }
 
         int cahcedbp = -1;
 
+        protected int insts = 0;
+
         public void ClockPulse()
         {
             if (cahcedbp == -1) cahcedbp = BasePointer;
+
+            insts += 1;
             
             /*fetch*/
             //the current instruction
@@ -139,7 +148,14 @@ namespace Atlas.Architecture
             OpCode inst = (OpCode)MemValue(MemSize.BYTE, ProgramCounter);
 
             //the literal value used for push instruction
-            int inlineLiteral = MemValue(MemSize.WORD, ProgramCounter + MemSizeToInt(InstructionSize));
+            int inlineLiteral = MemValue((MemSize)ArgSizeFromOpCode(inst), ProgramCounter + MemSizeToInt(InstructionSize));
+
+            if(inst == OpCode.SYSCALL)
+            {
+                SystemCall(inlineLiteral, GetStackFrame());
+                ProgramCounter = ProgramCounter + MemSizeToInt(InstructionSize) + MemSizeToInt(MemSize.BYTE);
+                return;
+            }
 
             //the arguments passed to this opcode
             //BUG this can crash if ... there is nothing in the stack??? huh
@@ -573,12 +589,6 @@ namespace Atlas.Architecture
 
         private void WriteMem(int value, int address, MemSize memSize)
         {
-            if (address == -1 && memSize != MemSize.NONE)
-            {
-                SystemCall(value);
-                return;
-            }
-
             int size = MemSizeToInt(memSize);
             if (size >= 4) { m_mem[address + 3] = ByteFromInt(value, 3); }
             if (size >= 3) { m_mem[address + 2] = ByteFromInt(value, 2); }
@@ -586,7 +596,63 @@ namespace Atlas.Architecture
             if (size >= 1) { m_mem[address] = ByteFromInt(value, 0); }
         }
 
-        protected virtual void SystemCall(int value){}
+        private void SystemCall(int value, byte[] stackFrame)
+        {
+            if (value == 1)
+            {
+                if (stackFrame.Length != 4)
+                {
+                    throw new InvalidOperationException("incorect arguments passed to print system call");
+                }
+
+                int charAddr = IntFromBytes(stackFrame[3], stackFrame[2], stackFrame[1], stackFrame[0]);
+
+                SysPrint(charAddr);
+            }
+            else if (value == 2)
+            {
+                if (stackFrame.Length != 4)
+                {
+                    throw new InvalidOperationException("incorect arguments passed to printint system call");
+                }
+
+                int toPrint = IntFromBytes(stackFrame[3], stackFrame[2], stackFrame[1], stackFrame[0]);
+                SysPrintInt(toPrint);
+            }
+            else if(value == 3)
+            {
+                SysClearSreen();
+            }
+            else if (value == 4)
+            {
+                if (stackFrame.Length != 4 * 5)
+                {
+                    throw new InvalidOperationException("incorect arguments passed to printint system call");
+                }
+
+                int b = IntFromBytes(stackFrame[3], stackFrame[2], stackFrame[1], stackFrame[0]);
+                int g = IntFromBytes(stackFrame[7], stackFrame[6], stackFrame[5], stackFrame[4]);
+                int r = IntFromBytes(stackFrame[11], stackFrame[10], stackFrame[9], stackFrame[8]);
+                int y = IntFromBytes(stackFrame[15], stackFrame[14], stackFrame[13], stackFrame[12]);
+                int x = IntFromBytes(stackFrame[19], stackFrame[18], stackFrame[17], stackFrame[16]);
+
+                SysSetPix(x, y, r, g, b);
+            }
+            else if (value == 5)
+            {
+                SysSwapBuffer();
+            }
+            else
+            {
+                throw new InvalidOperationException("invalid system call number");
+            }
+        }
+
+        protected abstract void SysPrint(int charAddr);
+        protected abstract void SysPrintInt(int toPrint);
+        protected abstract void SysClearSreen();
+        protected abstract void SysSetPix(int x, int y, int r, int g, int b);
+        protected abstract void SysSwapBuffer();
 
         private int SignExtend(int value, MemSize oldMemSize, MemSize newMemSize)
         {
@@ -607,11 +673,6 @@ namespace Atlas.Architecture
         
         private int LoadMemory(OpCode inst, int stackArgA, int stackArgB)
         {
-            if(stackArgB == -1)
-            {
-                return 0;
-            }
-            
             switch(inst)
             {
                 case OpCode.LB:

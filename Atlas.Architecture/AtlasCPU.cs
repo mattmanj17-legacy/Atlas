@@ -19,45 +19,80 @@ namespace Atlas.Architecture
         ArgumentB
     }
 
-    //list of valid instructions: 31 OpCodes
+    //list of valid instructions: 36 OpCodes
     public enum OpCode : byte
     {
-        NOP = 0x00,
-        ADD,
-        SUB,
-        NEG,
-        LESS,
-        EQU,
-        MUL,
-        SLL,
-        SRL,
-        NOT,
-        AND,
-        OR,
-        XOR,
-        LB,
-        LUB,
-        LH,
-        LUH,
-        LW,
-        SB,
-        SH,
-        SW,
-        JMP,
-        JIF,
-        PUSHBP,
-        COPY,
-        PUSHB,
-        PUSHH,
-        PUSHW,
-        POPB,
-        POPH,
-        POPW,
-        BEGINARGS,
-        CALL,
-        SYSCALL,
-        RETV,
-        RET
+        //four types of opcodes. control flow, ALU ops, Data transfer, stack manipulation
+        
+        // opcode forms
+       
+        //control flow 
+        // four types
+        // jumps
+        //  0011 000 C (C = Is conditional (1 = JIF, 0 = JMP))
+        // returns
+        //  0010 000 V (V = returs a value (1 = RETV, 0 = RET)
+        // function calling
+        //  0001 000 C (C = call or begin args (1= call, 0 = begin args)
+        // misc
+        //  0000 000 S (S = system call or not (1= syscall, 0 = NOP)
+        
+        //ALU ops 
+        // 01 FFFF P 0 (FFFF = alu signal, P = pop amout (1 = 1 (NOT, NEG), 0 = 2 (everythin g else)))
+        
+        //Data transfer 
+        // 10 L S NN 00 (L = load or store (1= load, 0 = store), S = signed (1 = signed, 0 = unsigned), NN = size (01 = byte, 10 = half, 11 = word))
+        
+        //stack manipulation
+        // 11 SS NN P 0 (SS = source (00 = base ptr, 01 = top of stack, 11 = literal) only has meaning if push, NN = size (01 = byte, 10 = half, 11 = word), P = Push or Pop (1 = push, 0 = pop))
+
+        //control flow
+        NOP         = 0x00, //00 00 00 0 0
+        SYSCALL     = 0x01, //00 00 00 0 1
+        BEGINARGS   = 0x10, //00 01 00 0 0 (call to start passing args to a function, before CALL)
+        CALL        = 0x11, //00 01 00 0 1
+        RET         = 0x20, //00 10 00 0 0
+        RETV        = 0x21, //00 10 00 0 1
+        JMP         = 0x30, //00 11 00 0 0
+        JIF         = 0x31, //00 11 00 0 1
+
+        //ALU ops 01 FFFF P 0
+        //ALU00 (Invert Sign, Subtraction, Addition, Less Than)
+        NEG         = 0x42, //01 00 00 1 0
+        SUB         = 0x44, //01 00 01 0 0
+        ADD         = 0x48, //01 00 10 0 0
+        LESS        = 0x4C, //01 00 11 0 0
+        //ALU01 (Unsigned Multiplication, Equality Check, *, *)
+        MUL         = 0x50, //01 01 00 0 0
+        EQU         = 0x54, //01 01 01 0 0
+        //ALU10 (Shift Left, Shift Right, *, *)
+        SLL         = 0x60, //01 10 00 0 0
+        SRL         = 0x64, //01 10 01 0 0
+        //ALU11 (Invert, And, Xor, Or)
+        XOR         = 0x70, //01 11 00 0 0
+        OR          = 0x74, //01 11 01 0 0
+        AND         = 0x78, //01 11 10 0 0
+        NOT         = 0x7C, //01 11 11 1 0
+
+        //data transfer 10 L S NN 00
+        SB          = 0x84, //10 0 0 01 00
+        SH          = 0x88, //10 0 0 10 00
+        SW          = 0x8C, //10 0 0 11 00
+        LUB         = 0xA4, //10 1 0 01 00
+        LUH         = 0xA8, //10 1 0 10 00
+        LB          = 0xB4, //10 1 1 01 00
+        LH          = 0xB8, //10 1 1 10 00
+        LW          = 0xBC, //10 1 1 11 00
+        
+        //stack manipulation 11 SS NN P 0
+        POPB        = 0xC4, //11 00 01 0 0
+        POPH        = 0xC8, //11 00 10 0 0
+        POPW        = 0xCC, //11 00 11 0 0
+        PUSHBP      = 0xCE, //11 00 11 1 0
+        COPY        = 0xDE, //11 01 11 1 0
+        PUSHB       = 0xF6, //11 11 01 1 0
+        PUSHH       = 0xFA, //11 11 10 1 0
+        PUSHW       = 0xFE  //11 11 11 1 0
     }
 
     public enum MemSize

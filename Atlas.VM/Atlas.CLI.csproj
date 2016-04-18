@@ -9,7 +9,7 @@
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Atlas.VM</RootNamespace>
-    <AssemblyName>Atlas.VM</AssemblyName>
+    <AssemblyName>Atlas</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <NuGetPackageImportStamp>8f0b226d</NuGetPackageImportStamp>

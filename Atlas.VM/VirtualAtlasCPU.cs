@@ -18,7 +18,7 @@ using OpenTK.Input;
 using System.Drawing.Imaging;
 using System.Diagnostics;
 
-namespace Atlas.VM
+namespace Atlas.CLI
 {
     class VirtualAtlasCPU : AtlasCPU
     {
@@ -34,63 +34,54 @@ namespace Atlas.VM
 
         static void InitCPU(string[] args)
         {
-            AtlasCCompilerFrontEnd compiler = new AtlasCCompilerFrontEnd();
-
-            string source = File.ReadAllText(args[0]);
-
-            string compiled = compiler.Compile(new AntlrInputStream(source));
-
-            if (compiled == null)
+            if(args[0] == "-c")
             {
-                return;
-            }
+                AtlasCCompilerFrontEnd compiler = new AtlasCCompilerFrontEnd();
 
-            Console.WriteLine("compiled program\n");
-            Console.WriteLine(compiled);
+                string source = File.ReadAllText(args[1]);
 
-            Console.Write("Press any key to begin emulation...");
-            Console.ReadLine();
+                string compiled = compiler.Compile(new AntlrInputStream(source));
 
-            AtlasAssembler assembler = new AtlasAssembler();
-
-            byte[] program = assembler.Assemble(new AntlrInputStream(compiled));
-
-            if (program == null)
-            {
-                return;
-            }
-
-            File.WriteAllBytes("out.bin", program);
-            string dir = Directory.GetCurrentDirectory();
-
-            cpu = new VirtualAtlasCPU();
-            cpu.LoadProgram(program);
-
-            Console.Clear();
-
-            Action cpuMain = () =>
-            {
-                while (true)
+                if (compiled != null)
                 {
-                    /*
-                    Console.Clear();
-                    Console.WriteLine(cpu.cout);
-                    Console.WriteLine("--------------------------");
-                    Console.WriteLine("Current Instruction : " + cpu.GetCurrentInstruction());
-                    Console.WriteLine("Stack Frame : ");
-                    byte[] frame = cpu.GetStackFrame().Reverse().ToArray();
-                    foreach(byte b in frame)
-                    {
-                        Console.WriteLine(b.ToString("X2"));
-                    }
-                    Console.Write("Press any key to single step...");
-                    Console.ReadLine();
-                    //Thread.Sleep(500); */
-                    cpu.ClockPulse();
+                    File.WriteAllText(args[2], compiled);
                 }
-            };
+                Environment.Exit(0);
+            }
+            else if(args[0] == "-a")
+            {
+                AtlasAssembler assembler = new AtlasAssembler();
 
-            cpuThread = new Thread(() => cpuMain());
+                string compiled = File.ReadAllText(args[1]);
+
+                byte[] program = assembler.Assemble(new AntlrInputStream(compiled));
+
+                if (program != null)
+                {
+                    File.WriteAllBytes(args[2], program);
+                }
+                Environment.Exit(0);
+            }
+            else if(args[0] == "-e")
+            {
+                cpu = new VirtualAtlasCPU();
+
+                byte[] program = File.ReadAllBytes(args[1]);
+
+                cpu.LoadProgram(program);
+
+                Action cpuMain = () =>
+                {
+                    while (true)
+                    {
+                        cpu.ClockPulse();
+                    }
+                };
+
+                cpuThread = new Thread(() => cpuMain());
+
+                Console.Clear();
+            } 
         }
 
         static Action UpdateTexture;

@@ -5,7 +5,7 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.Architecture", "Atlas.Architecture\Atlas.Architecture.csproj", "{3ECDB42F-A161-498B-B2C2-BBCFDDCE94B0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.VM", "Atlas.VM\Atlas.VM.csproj", "{D2797C5E-F2B5-4AD5-B7DD-6E3E4E95A871}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.CLI", "Atlas.VM\Atlas.CLI.csproj", "{D2797C5E-F2B5-4AD5-B7DD-6E3E4E95A871}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.Assembler", "Atlas.Assembler\Atlas.Assembler.csproj", "{F62FAA05-9789-4745-B6C0-DA2512F6E4FF}"
 EndProject

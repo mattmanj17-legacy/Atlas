@@ -72,14 +72,15 @@ instructionCode
 	| BEGINARGS
 	| CALL
 	| RETV
-	| RET;
+	| RET
+	| IB
+	| OB;
 
 //instructions that require an argument
 instructionCodeNeedsArg  
 	: PUSHB
 	| PUSHH
-	| PUSHW
-	| SYSCALL;
+	| PUSHW;
 
 /*
  * Lexer Rules
@@ -124,6 +125,8 @@ BEGINARGS:'BEGINARGS';
 CALL:'CALL' ;
 RETV:'RETV' ;
 RET:'RET' ;
+IB:'IB';
+OB:'OB';
 
 //instructions (one arg)
 PUSHW:'PUSHW';

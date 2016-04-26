@@ -1,164 +1,132 @@
-// 1 : print(char* c) --- prints a null terminated string to the console, and a newline;
-void print(char* toPrint)
+int div(int dividend, int divisor) 
 {
-	asm("SYSCALL 1");
-	return;
-}
+	int denom = divisor;
+	int current = 1;
+	int answer = 0;
 
-// 2 : printInt(int c) --- prints a number to the console and a newline;
-void printInt(int toPrint)
-{
-	asm("SYSCALL 2");
-	return;
-}
+	if (denom > dividend)
+		return 0;
 
-//3 : clear screen() -- clears screen to black
-void clearScreen()
-{
-	asm("SYSCALL 3");
-	return;
-}
+	if (denom == dividend)
+		return 1;
 
-//4 : setPix(int x, int y, int r, int g, int b) -- screen[x,y] = color(r,g,b)
-void setPix(int x, int y, int r, int g, int b)
-{
-	asm("SYSCALL 4");
-	return;
-}
-
-//5 : swapBuffers
-void SwapBuffers()
-{
-	asm("SYSCALL 5");
-	return;
-}
-
-//-------------------------------------------
-
-int abs(int x)
-{
-	return x < 0 ? -x : x;
-}
-
-void line(int x, int y, int x2, int y2) 
-{
-	int w = x2 - x;
-	int h = y2 - y;
-	
-	int dx1 = 0;
-	int dy1 = 0;
-	int dx2 = 0; 
-	int dy2 = 0;
-	
-	if (w < 0) dx1 = -1; 
-	else if (w>0) dx1 = 1;
-
-	if (h < 0) dy1 = -1; 
-	else if (h>0) dy1 = 1;
-
-	if (w < 0) dx2 = -1; 
-	else if (w>0) dx2 = 1;
-	
-	int longest = abs(w);
-	int shortest = abs(h);
-
-	if (!(longest > shortest)) 
-	{
-		longest = abs(h);
-		shortest = abs(w);
-
-		if (h < 0) dy2 = -1; 
-		else if (h>0) dy2 = 1;
-
-		dx2 = 0;
+	while (denom <= dividend) {
+		denom = denom << 1;
+		current = current << 1;
 	}
 
-	int numerator = longest >> 1;
+	denom = denom >> 1;
+	current = current >> 1;
 
-	int i = 0;
+	while (current != 0) {
+		if (dividend >= denom) {
+			dividend = dividend - denom;
+			answer = answer | current;
+		}
+		current >>= 1;
+		denom >>= 1;
+	}
+	return answer;
+}
 
-	while (i <= longest)
+int mod(int a, int b)
+{
+	return (a - div(a, b) * b);
+}
+
+// A utility function to reverse a string 
+void reverse(char* str, int length)
+{
+	int start = 0;
+	int end = length - 1;
+	while (start < end)
 	{
-		(setPix(x, y, 255, 255, 255));
-		numerator += shortest;
-		if (!(numerator < longest))
-		{
-			numerator = numerator - longest;
-			x += dx1;
-			y += dy1;
-		}
-		else
-		{
-			x += dx2;
-			y += dy2;
-		}
+		char old = *(str + start);
+		*(str + start) = *(str + end);
+		*(str + end) = old;
+		
+		start = start + 1;
+		end = end - 1;
+	}
+	return;
+}
 
-		//(print("line"));
+// Implementation of itoa()
+char* itoa(int num, char* str, int base)
+{
+	int i = 0;
+	int isNegative = 0;
 
-		i++;
+	/* Handle 0 explicitely, otherwise empty string is printed for 0 */
+	if (num == 0)
+	{
+		*(str + i) = '0';
+		i = i + 1;
+		*(str + i) = '\0';
+		return str;
+	}
+
+	// In standard itoa(), negative numbers are handled only with 
+	// base 10. Otherwise numbers are considered unsigned.
+	if (num < 0 && base == 10)
+	{
+		isNegative = 1;
+		num = -num;
+	}
+
+	// Process individual digits
+	while (num != 0)
+	{
+		int rem = mod(num, base);
+		*(str + i) = (rem > 9) ? (rem - 10) + 'a' : rem + '0';
+		num = div(mod / base);
+	}
+
+	// If number is negative, append '-'
+	if (isNegative){
+		*(str + i) = '-';
+		i = i + 1;
+	}
+
+	*(str + i) = '\0'; // Append string terminator
+
+	// Reverse the string
+	reverse(str, i);
+
+	return str;
+}
+
+char* buffer = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+void OB(int out)
+{
+	asm("OB");
+	return;
+}
+
+int IB()
+{
+	asm("IB");
+	asm("RETV");
+}
+
+void cout(char* out)
+{
+	int index = 0;
+	while (*(out + index) != '\0')
+	{
+		OB(*(out + index));
+		index = index + 1;
 	}
 	return;
 }
 
 int main()
 {
-	int sideWidth = 130;
-	
-	int x0 = 320;
-	int y0 = 170;
-
-	int x1 = x0 + sideWidth;
-	int y1 = y0 + sideWidth;
-
-	int d = 5;
-
-	int state = 1;
-
-	while (1)
-	{
-		(clearScreen());
-
-		//todo ugh args are passed backwards
-		line(y1, x1, y0, x0);
-
-		//(print("loop"));
-
-		if (state == 0)
-		{
-			x1 += d;
-
-			if (x1 > x0 + sideWidth)
-			{
-				state = 1;
-			}
-		}
-		else if (state == 1)
-		{
-			y1 = y1 - d;
-
-			if (y1 < y0 - sideWidth)
-			{
-				state = 2;
-			}
-		}
-		else if (state == 2)
-		{
-			x1 = x1 - d;
-			if (x1 < x0 - sideWidth)
-			{
-				state = 3;
-			}
-		}
-		else
-		{
-			y1 += d;
-			if (y1 > y0 + sideWidth)
-			{
-				state = 0;
-			}
-		}
-
-		(SwapBuffers());
-	}
-	return;
+	(cout("Base:10 ")); (cout(itoa( 1567, buffer, 10))); (cout("\n"));
+	(cout("Base:10 ")); (cout(itoa(-1567, buffer, 10))); (cout("\n"));
+	(cout("Base:2 " )); (cout(itoa( 1567, buffer, 2 ))); (cout("\n"));
+	(cout("Base:8 " )); (cout(itoa( 1567, buffer, 8 ))); (cout("\n"));
+	(cout("Base:16 ")); (cout(itoa( 1567, buffer, 16))); (cout("\n"));
+	while (1){}
 }

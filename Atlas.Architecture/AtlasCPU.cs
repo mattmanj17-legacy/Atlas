@@ -16,7 +16,8 @@ namespace Atlas.Architecture
         BasePointer,
         NextInstructionAddress,
         Literal,
-        ArgumentB
+        ArgumentB,
+        InByte
     }
 
     //list of valid instructions: 36 OpCodes
@@ -46,9 +47,12 @@ namespace Atlas.Architecture
         //stack manipulation
         // 11 SS NN P 0 (SS = source (00 = base ptr, 01 = top of stack, 11 = literal) only has meaning if push, NN = size (01 = byte, 10 = half, 11 = word), P = Push or Pop (1 = push, 0 = pop))
 
-        //control flow
+        //control flow/misc
         NOP         = 0x00, //00 00 00 0 0
-        SYSCALL     = 0x01, //00 00 00 0 1
+
+        IB          = 0x01, //00 00 00 0 1 //in byte
+        OB          = 0x02, //00 00 00 1 0 //out byte
+
         BEGINARGS   = 0x10, //00 01 00 0 0 (call to start passing args to a function, before CALL)
         CALL        = 0x11, //00 01 00 0 1
         RET         = 0x20, //00 10 00 0 0
@@ -103,7 +107,7 @@ namespace Atlas.Architecture
         WORD = 4
     }
 
-    public abstract class AtlasCPU
+    public class AtlasCPU
     {
         public const MemSize OperandSize = MemSize.WORD;
         public const MemSize InstructionSize = MemSize.BYTE;
@@ -120,7 +124,6 @@ namespace Atlas.Architecture
                 case OpCode.PUSHH:
                     return 2;
                 case OpCode.PUSHB:
-                case OpCode.SYSCALL:
                     return 1;
                 default:
                     return 0;
@@ -185,17 +188,20 @@ namespace Atlas.Architecture
             //the literal value used for push instruction
             int inlineLiteral = MemValue((MemSize)ArgSizeFromOpCode(inst), ProgramCounter + MemSizeToInt(InstructionSize));
 
-            if(inst == OpCode.SYSCALL)
-            {
-                SystemCall(inlineLiteral, GetStackFrame());
-                ProgramCounter = ProgramCounter + MemSizeToInt(InstructionSize) + MemSizeToInt(MemSize.BYTE);
-                return;
-            }
-
             //the arguments passed to this opcode
             //BUG this can crash if ... there is nothing in the stack??? huh
             int stackArgB = MemValue(MemSize.WORD, StackPointer - MemSizeToInt(OperandSize));
             int stackArgA = MemValue(MemSize.WORD, StackPointer - 2 * MemSizeToInt(OperandSize));
+
+            int inByte = 0; 
+            if(inst == OpCode.IB)
+            {
+                inByte = Console.Read();
+            }
+            else
+            {
+                Console.Write(((char)stackArgB));
+            }
 
             // the return address, stored one word below the cached base pointer (see implimentation of BEGINARGS and CALL)
             int returnAddress = MemValue(MemSize.WORD, BasePointer - MemSizeToInt(MemSize.WORD));
@@ -214,6 +220,7 @@ namespace Atlas.Architecture
                     newSP = StackPointer + 2 * MemSizeToInt(MemSize.WORD);
                     break;
                 //+4
+                case OpCode.IB:
                 case OpCode.PUSHW:
                 case OpCode.PUSHBP:
                 case OpCode.COPY:
@@ -266,6 +273,7 @@ namespace Atlas.Architecture
                 case OpCode.OR:
                 case OpCode.XOR:
                 //pop word off stack, push none
+                case OpCode.OB:
                 case OpCode.POPW:
                 case OpCode.JMP:
                 case OpCode.CALL:
@@ -327,6 +335,8 @@ namespace Atlas.Architecture
                 case OpCode.POPH:
                 case OpCode.POPB:
                 case OpCode.NOP:
+                case OpCode.IB:
+                case OpCode.OB:
                     newBp = BasePointer;
                     break;
                 case OpCode.BEGINARGS:
@@ -375,6 +385,8 @@ namespace Atlas.Architecture
                 case OpCode.POPH:
                 case OpCode.POPB:
                 case OpCode.BEGINARGS:
+                case OpCode.IB:
+                case OpCode.OB:
                     newPC = ProgramCounter + MemSizeToInt(InstructionSize);
                     break;
                 case OpCode.PUSHW:
@@ -414,7 +426,11 @@ namespace Atlas.Architecture
                 case OpCode.JIF:
                 case OpCode.RET:
                 case OpCode.NOP:
+                case OpCode.OB:
                     writeSource = AtlasWriteSource.DisableWrite;
+                    break;
+                case OpCode.IB:
+                    writeSource = AtlasWriteSource.InByte;
                     break;
                 case OpCode.ADD:
                 case OpCode.SUB:
@@ -470,6 +486,7 @@ namespace Atlas.Architecture
                 case OpCode.POPH:
                 case OpCode.POPB:
                 case OpCode.RET:
+                case OpCode.OB:
                     bytesWritten = MemSize.NONE;
                     break;
                 //1
@@ -507,6 +524,7 @@ namespace Atlas.Architecture
                 case OpCode.BEGINARGS:
                 case OpCode.CALL:
                 case OpCode.RETV:
+                case OpCode.IB:
                     bytesWritten = MemSize.WORD;
                     break;
             }
@@ -523,6 +541,7 @@ namespace Atlas.Architecture
                 case OpCode.POPH:
                 case OpCode.POPB:
                 case OpCode.RET:
+                case OpCode.OB:
                     writeAddress = 0;
                     break;
                 //replace top of stack
@@ -548,6 +567,7 @@ namespace Atlas.Architecture
                 case OpCode.PUSHH:
                 case OpCode.PUSHB:
                 case OpCode.BEGINARGS:
+                case OpCode.IB:
                     writeAddress = StackPointer;
                     break;
                 //pop two word, push
@@ -602,6 +622,9 @@ namespace Atlas.Architecture
                 case AtlasWriteSource.ArgumentB:
                     writeVal = stackArgB;
                     break;
+                case AtlasWriteSource.InByte:
+                    writeVal = inByte;
+                    break;
             }
 
             WriteMem(writeVal, writeAddress, bytesWritten);
@@ -630,64 +653,6 @@ namespace Atlas.Architecture
             if (size >= 2) { m_mem[address + 1] = ByteFromInt(value, 1); }
             if (size >= 1) { m_mem[address] = ByteFromInt(value, 0); }
         }
-
-        private void SystemCall(int value, byte[] stackFrame)
-        {
-            if (value == 1)
-            {
-                if (stackFrame.Length != 4)
-                {
-                    throw new InvalidOperationException("incorect arguments passed to print system call");
-                }
-
-                int charAddr = IntFromBytes(stackFrame[3], stackFrame[2], stackFrame[1], stackFrame[0]);
-
-                SysPrint(charAddr);
-            }
-            else if (value == 2)
-            {
-                if (stackFrame.Length != 4)
-                {
-                    throw new InvalidOperationException("incorect arguments passed to printint system call");
-                }
-
-                int toPrint = IntFromBytes(stackFrame[3], stackFrame[2], stackFrame[1], stackFrame[0]);
-                SysPrintInt(toPrint);
-            }
-            else if(value == 3)
-            {
-                SysClearSreen();
-            }
-            else if (value == 4)
-            {
-                if (stackFrame.Length != 4 * 5)
-                {
-                    throw new InvalidOperationException("incorect arguments passed to printint system call");
-                }
-
-                int b = IntFromBytes(stackFrame[3], stackFrame[2], stackFrame[1], stackFrame[0]);
-                int g = IntFromBytes(stackFrame[7], stackFrame[6], stackFrame[5], stackFrame[4]);
-                int r = IntFromBytes(stackFrame[11], stackFrame[10], stackFrame[9], stackFrame[8]);
-                int y = IntFromBytes(stackFrame[15], stackFrame[14], stackFrame[13], stackFrame[12]);
-                int x = IntFromBytes(stackFrame[19], stackFrame[18], stackFrame[17], stackFrame[16]);
-
-                SysSetPix(x, y, r, g, b);
-            }
-            else if (value == 5)
-            {
-                SysSwapBuffer();
-            }
-            else
-            {
-                throw new InvalidOperationException("invalid system call number");
-            }
-        }
-
-        protected abstract void SysPrint(int charAddr);
-        protected abstract void SysPrintInt(int toPrint);
-        protected abstract void SysClearSreen();
-        protected abstract void SysSetPix(int x, int y, int r, int g, int b);
-        protected abstract void SysSwapBuffer();
 
         private int SignExtend(int value, MemSize oldMemSize, MemSize newMemSize)
         {

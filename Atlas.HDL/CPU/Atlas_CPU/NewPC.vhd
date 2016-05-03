@@ -45,42 +45,25 @@ end NewPC;
 architecture Behavioral of NewPC is
 	signal adjPC : STD_LOGIC_VECTOR (31 downto 0);
 	signal pcOffsetVal : STD_LOGIC_VECTOR (31 downto 0);
-	
+	signal conditionalResult : STD_LOGIC_VECTOR(31 downto 0);
 begin
-	--calc PC offset for most instructions
-	case pcOffset is
-		when "00" => --normal inst
-			pcOffsetVal <= STD_LOGIC_VECTOR(to_unsigned(1,32));
-			
-		when "01" => --increment past byte literal
-			pcOffsetVal <= STD_LOGIC_VECTOR(to_unsigned(2,32));
+	pcOffsetVal <= 
+		STD_LOGIC_VECTOR(to_unsigned(1,32)) when pcOffset = "00" else
+		STD_LOGIC_VECTOR(to_unsigned(2,32)) when pcOffset = "01" else
+		STD_LOGIC_VECTOR(to_unsigned(3,32)) when pcOffset = "10" else
+		STD_LOGIC_VECTOR(to_unsigned(5,32)); 
 		
-		when "10" => --increment past half literal
-			pcOffsetVal <= STD_LOGIC_VECTOR(to_unsigned(3,32));
-
-		when "11" => --increment past word literal
-			pcOffsetVal <= STD_LOGIC_VECTOR(to_unsigned(5,32));
-	end case;
 	adjPC <= pc + pcOffsetVal;
 	
-	case jmpType is
-		when "00" => --goto next instruction (most instructions)
-			newPCOut <= adjPC;
-			
-		when "01" => --unconditional jump (JMP)
-			newPCOut <= argB;
+	conditionalResult <= 
+		adjPC when argA = "00000000000000000000000000000000" else
+		argB;
+	
+	newPCOut <= 
+		adjPC when jmpType = "00" else 
+		argB when jmpType = "01" else 
+		conditionalResult when jmpType = "10" else 
+		retAddr;
 		
-		when "10" => --conditional jump (JIF)
-			case argA is
-				when STD_LOGIC_VECTOR(to_unsigned(0,32)) =>
-					newPCOut <= adjPC;
-				
-				when others =>
-					newPCOut <= argB;
-			end case;
-
-		when "11" => --return from func (RET, RETV)
-			newPCOut <= retAddr;
-	end case;
 end Behavioral;
 

@@ -117,7 +117,7 @@ begin
 		a XOR b when f(1 downto 0) = "00" else
 		a OR b when f(1 downto 0) = "01" else
 		a AND b when f(1 downto 0) = "10" else
-		NOT a;
+		NOT b;
 		
 	--select output based on first two bits of control signal
 	y <= 

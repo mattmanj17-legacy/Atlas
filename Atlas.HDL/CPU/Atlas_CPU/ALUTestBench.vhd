@@ -142,10 +142,10 @@ BEGIN
 		wait for 10 ns;
 		assert Y = std_logic_vector(to_unsigned(2, 32)) report "1110 failed Y:" & integer'image(to_integer(unsigned(Y))) & " a:" & integer'image(to_integer(unsigned(a))) & " b:" & integer'image(to_integer(unsigned(b)));
 		wait for 10 ns;
-		--not 11 : Y = ~A
+		--not 11 : Y = ~B
 		f <= "1111";
 		wait for 10 ns;
-		assert Y = "11111111111111111111111111111100" report "1111 failed Y:" & integer'image(to_integer(unsigned(Y))) & " a:" & integer'image(to_integer(unsigned(a))) & " b:" & integer'image(to_integer(unsigned(b)));
+		assert Y = "11111111111111111111111111111101" report "1111 failed Y:" & integer'image(to_integer(unsigned(Y))) & " a:" & integer'image(to_integer(unsigned(a))) & " b:" & integer'image(to_integer(unsigned(b)));
 		wait for 10 ns;
 		
       wait;

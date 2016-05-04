@@ -19,6 +19,9 @@
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -30,12 +33,39 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 entity SelectWAddr is
+	port(
+		cbp : in STD_LOGIC_VECTOR(31 downto 0);
+		bp : in STD_LOGIC_VECTOR(31 downto 0);
+		sp : in STD_LOGIC_VECTOR(31 downto 0);
+		selectPointer : in STD_LOGIC_VECTOR(2 downto 0);
+		pointerOffsetPositive : in STD_LOGIC;
+		
+		argA : in STD_LOGIC_VECTOR(31 downto 0);
+		argAorPointer : in STD_LOGIC;
+		
+		wAddr : out STD_LOGIC_VECTOR(31 downto 0)
+	);
 end SelectWAddr;
 
 architecture Behavioral of SelectWAddr is
-
+	signal pointer : STD_LOGIC_VECTOR(31 downto 0);
+	signal pointerOffset : STD_LOGIC_VECTOR(31 downto 0);
+	signal adjustedPointer : STD_LOGIC_VECTOR(31 downto 0);
 begin
-
+	pointer <= 
+		cbp when selectPointer = "00" else
+		bp  when selectPointer = "01" else
+		sp;
+		
+	pointerOffset <= 
+		STD_LOGIC_VECTOR(to_signed(-8,32)) when pointerOffsetPositive = '0' else
+		STD_LOGIC_VECTOR(to_signed(8,32));
+		
+	adjustedPointer <= pointer + pointerOffset;
+	
+	wAddr <= 
+		argA when argAorPointer = '0' else
+		adjustedPointer;
 
 end Behavioral;
 

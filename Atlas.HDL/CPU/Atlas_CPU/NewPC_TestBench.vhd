@@ -48,7 +48,7 @@ ARCHITECTURE behavior OF NewPC_TestBench IS
          retAddr : IN  std_logic_vector(31 downto 0);
          argA : IN  std_logic_vector(31 downto 0);
          argB : IN  std_logic_vector(31 downto 0);
-         pcOffset : IN  std_logic_vector(1 downto 0);
+         pcOffset : IN  std_logic;
          jmpType : IN  std_logic_vector(1 downto 0);
          newPCOut : OUT  std_logic_vector(31 downto 0)
         );
@@ -60,7 +60,7 @@ ARCHITECTURE behavior OF NewPC_TestBench IS
    signal retAddr : std_logic_vector(31 downto 0) := (others => '0');
    signal argA : std_logic_vector(31 downto 0) := (others => '0');
    signal argB : std_logic_vector(31 downto 0) := (others => '0');
-   signal pcOffset : std_logic_vector(1 downto 0) := (others => '0');
+   signal pcOffset : std_logic := '0';
    signal jmpType : std_logic_vector(1 downto 0) := (others => '0');
 
  	--Outputs
@@ -88,7 +88,7 @@ BEGIN
 		argB <= STD_LOGIC_VECTOR(to_unsigned(16#0FFFFFFF#, 32));
 		argA <= STD_LOGIC_VECTOR(to_unsigned(16#00000000#, 32));
 		retAddr <= STD_LOGIC_VECTOR(to_unsigned(16#0FFFFFFE#, 32));
-		pcOffset <= "00";
+		pcOffset <= '0';
 		jmpType <= "00";
 		
 		--test non-jump/goto instructions
@@ -96,20 +96,10 @@ BEGIN
 		assert newPCOut = STD_LOGIC_VECTOR(to_unsigned(1, 32))
 			report "increment +1 failed";
 			
-		pcOffset <= "01";
+		pcOffset <= '1';
       wait for 20 ns;	
 		assert newPCOut = STD_LOGIC_VECTOR(to_unsigned(2, 32))
 			report "increment +2 failed";
-			
-		pcOffset <= "10";
-      wait for 20 ns;	
-		assert newPCOut = STD_LOGIC_VECTOR(to_unsigned(3, 32))
-			report "increment +3 failed";
-			
-		pcOffset <= "11";
-      wait for 10 ns;	
-		assert newPCOut = STD_LOGIC_VECTOR(to_unsigned(5, 32))
-			report "increment +5 failed";
 		
 		--test jumps
 		jmpType <= "01";
@@ -119,14 +109,14 @@ BEGIN
 			
 		--test conditional jmp on argA
 		jmpType <= "10";
-		pcOffset <= "00";
+		pcOffset <= '0';
 		argA <= STD_LOGIC_VECTOR(to_unsigned(16#00000001#, 32));
       wait for 20 ns;	
 		assert newPCOut = argB 
 			report "conditional jmp (argA == true) failed";
 			
 		jmpType <= "10";
-		pcOffset <= "00";
+		pcOffset <= '0';
 		argA <= STD_LOGIC_VECTOR(to_unsigned(16#00000000#, 32));
       wait for 20 ns;	
 		assert newPCOut = pc + STD_LOGIC_VECTOR(to_unsigned(16#00000001# , 32))

@@ -37,7 +37,7 @@ entity NewPC is
 	port ( pc : in STD_LOGIC_VECTOR (31 downto 0);
 			retAddr: in STD_LOGIC_VECTOR (31 downto 0);
 			argA, argB : in STD_LOGIC_VECTOR (31 downto 0);
-			pcOffset : in STD_LOGIC_VECTOR (1 downto 0);
+			pcOffset : in STD_LOGIC;
 			jmpType : in STD_LOGIC_VECTOR (1 downto 0);
 			newPCOut : out STD_LOGIC_VECTOR (31 downto 0) );
 end NewPC;
@@ -48,10 +48,8 @@ architecture Behavioral of NewPC is
 	signal conditionalResult : STD_LOGIC_VECTOR(31 downto 0);
 begin
 	pcOffsetVal <= 
-		STD_LOGIC_VECTOR(to_unsigned(1,32)) when pcOffset = "00" else
-		STD_LOGIC_VECTOR(to_unsigned(2,32)) when pcOffset = "01" else
-		STD_LOGIC_VECTOR(to_unsigned(3,32)) when pcOffset = "10" else
-		STD_LOGIC_VECTOR(to_unsigned(5,32)); 
+		STD_LOGIC_VECTOR(to_unsigned(1,32)) when pcOffset = '0' else
+		STD_LOGIC_VECTOR(to_unsigned(2,32)); 
 		
 	adjPC <= pc + pcOffsetVal;
 	

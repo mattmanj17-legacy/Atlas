@@ -19,6 +19,9 @@
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -30,12 +33,48 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 entity Memory is
+	port(
+		clk : in STD_LOGIC;
+	
+		pcPlusOne : in STD_LOGIC_VECTOR(31 downto 0);
+		pc : in STD_LOGIC_VECTOR(31 downto 0);
+		spMinusEight : in STD_LOGIC_VECTOR(31 downto 0);
+		bpMinusEight : in STD_LOGIC_VECTOR(31 downto 0);
+		memReadAddr : in STD_LOGIC_VECTOR(31 downto 0);
+		
+		wAddr : in STD_LOGIC_VECTOR(31 downto 0);
+		wData : in STD_LOGIC_VECTOR(31 downto 0);
+		
+		wEN : in STD_LOGIC; -- write enabled
+		wSize : in STD_LOGIC_VECTOR(3 downto 0); -- enable write individual bytes of word
+		
+		lit : out STD_LOGIC_VECTOR(31 downto 0);
+		instruction : out STD_LOGIC_VECTOR(7 downto 0);
+		argA : out STD_LOGIC_VECTOR(31 downto 0);
+		argB : out STD_LOGIC_VECTOR(31 downto 0);
+		memReadVal : out STD_LOGIC_VECTOR(31 downto 0);
+		retAddr : out STD_LOGIC_VECTOR(31 downto 0);
+		oldBP : out STD_LOGIC_VECTOR(31 downto 0)
+	);
 end Memory;
 
 architecture Behavioral of Memory is
-
+	type mem_array is array((2**8-1) downto 0) of STD_LOGIC_VECTOR(31 downto 0);
+	signal mem : mem_array;
 begin
-
-
+	process(clk) begin
+		if rising_edge(clk) then
+			if wEN = '1' then mem(conv_integer(wAddr)) <= wData; end if;
+		end if;
+	end process;
+	
+	lit <= (mem(conv_integer(pcPlusOne)));
+	instruction <= mem(conv_integer(pc))(7 downto 0);
+	argA <= (mem(conv_integer(spMinusEight)));
+	argB <= (mem(conv_integer(spMinusEight + 4)));
+	memReadVal <= (mem(conv_integer(memReadAddr)));
+	retAddr <= (mem(conv_integer(bpMinusEight)));
+	oldBP <= (mem(conv_integer(bpMinusEight + 4)));
+	
 end Behavioral;
 

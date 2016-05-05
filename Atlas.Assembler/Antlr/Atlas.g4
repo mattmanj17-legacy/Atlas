@@ -2,7 +2,7 @@ grammar Atlas;
 /*
  * Parser Rules
  */
-root: (labelDecl | variableDecl | arrayDecl | stringDecl | instruction | end | SPACE)*;
+root: (labelDecl | variableDecl | arrayDecl | instruction | end | SPACE)*;
 
 //Top level nodes
 labelDecl: ID COLON (end|EOF);
@@ -11,8 +11,6 @@ variableDecl : ID SPACE? COLON SPACE? type SPACE literal SPACE? (end|EOF);
 
 arrayDecl : ID SPACE? COLON SPACE? type SPACE arrayInitilizer SPACE? (end|EOF);
 
-stringDecl : ID SPACE? COLON SPACE? STRING SPACE? (end|EOF);
-
 instruction
 	: instructionCode (end|EOF)
 	| instructionCodeNeedsArg SPACE (ID | literal) (end|EOF);
@@ -20,22 +18,16 @@ instruction
 end: NL | COMMENT | BLOCK_COMMENT;
 
 // Used in Variable/array Declaration
-type : BYTE | HALF | WORD ;
+type : WORD ;
 
 // used in variable Declartions and as arguments to Instructions which require an argument
 literal 
-	: INT 
-	| HEX 
-	| CHAR 
-	| boolean 
-	| NULL;
-
-boolean : (TRUE | FALSE);
+	: INT ;
 
 //used to declare an array
 arrayInitilizer
 	//declare an array of a certain size, filled with zero
-	: OSQUAREBRACE (INT | HEX) CSQUAREBRACE 
+	: OSQUAREBRACE (INT) CSQUAREBRACE 
 	//declare an array filled with literal values
 	| (OCURLYBRACE SPACE? literal SPACE? (COMMA SPACE? literal SPACE?)* CCURLYBRACE); 
 
@@ -54,33 +46,21 @@ instructionCode
 	| AND
 	| OR
 	| XOR
-	| LB
-	| LUB
-	| LH
-	| LUH
 	| LW
-	| SB
-	| SH
 	| SW
 	| JMP
 	| JIF
 	| PUSHBP
 	| COPY
-	| POPB
-	| POPH
 	| POPW
 	| BEGINARGS
 	| CALL
 	| RETV
-	| RET
-	| IB
-	| OB;
+	| RET;
 
 //instructions that require an argument
 instructionCodeNeedsArg  
-	: PUSHB
-	| PUSHH
-	| PUSHW;
+	: PUSHW;
 
 /*
  * Lexer Rules
@@ -88,8 +68,6 @@ instructionCodeNeedsArg
 
 //Keywords
 //Types
-BYTE : 'BYTE';
-HALF : 'HALF';
 WORD : 'WORD';
 
 //Instructions (no arg)
@@ -106,69 +84,24 @@ NOT:'NOT' ;
 AND:'AND' ;
 OR:'OR' ;
 XOR:'XOR' ;
-LB:'LB' ;
-LUB:'LUB' ;
-LH:'LH' ;
-LUH:'LUH' ;
 LW:'LW' ;
-SB:'SB' ;
-SH:'SH' ;
 SW:'SW' ;
 JMP:'JMP';
 JIF:'JIF' ;
 PUSHBP:'PUSHBP'; 
 COPY:'COPY';
 POPW:'POPW' ;
-POPH:'POPH' ;
-POPB:'POPB' ;
 BEGINARGS:'BEGINARGS'; 
 CALL:'CALL' ;
 RETV:'RETV' ;
 RET:'RET' ;
-IB:'IB';
-OB:'OB';
 
 //instructions (one arg)
 PUSHW:'PUSHW';
-PUSHH:'PUSHH';
-PUSHB:'PUSHB';
-SYSCALL:'SYSCALL';
 
 //Literals
 //numeric
 INT :'-'?[0-9]+;
-HEX :'0''x'HEX_DIGIT+;
-//boolean
-TRUE : 'TRUE';
-FALSE : 'FALSE';
-//NULL
-NULL : 'NULL';
-//Character
-CHAR:  '\'' ( ESC_SEQ | ~('\''|'\\') ) '\'';
-//string
-STRING:  '"' ( ESC_SEQ | ~('\\'|'"') )* '"';
-//framgens (make up other literals)
-fragment
-ESC_SEQ
-    :   '\\' ('b'|'t'|'n'|'f'|'r'|'\"'|'\''|'\\')
-    |   UNICODE_ESC
-    |   OCTAL_ESC
-    ;
-
-fragment
-OCTAL_ESC
-    :   '\\' ('0'..'3') ('0'..'7') ('0'..'7')
-    |   '\\' ('0'..'7') ('0'..'7')
-    |   '\\' ('0'..'7')
-    ;
-
-fragment
-UNICODE_ESC
-    :   '\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
-    ;
-
-fragment
-HEX_DIGIT : ('0'..'9'|'A'..'F') ;
 
 //ID (variable/Array/string/label name)
 ID: [a-zA-Z_][a-zA-Z0-9_]*;

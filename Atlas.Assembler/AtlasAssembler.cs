@@ -43,7 +43,7 @@ namespace Atlas.Assembler
                 m_currentPass = AssemblerSemanticAnalysisPass.RecordLabels;
                 m_fileSize = 0;
                 m_labels.Clear();
-                m_byteBuffer.Clear();
+                m_wordBuffer.Clear();
                 
                 //perform all passes
                 while(m_currentPass != AssemblerSemanticAnalysisPass.Done)
@@ -54,7 +54,7 @@ namespace Atlas.Assembler
                     walker.Walk(this, root);
                 }
 
-                return m_byteBuffer.ToArray(); 
+                return m_wordBuffer.SelectMany(x => AtlasCPU.BytesFromInt(x)).ToArray(); 
             }
             catch (AssemblerException e)
             {
@@ -101,11 +101,11 @@ namespace Atlas.Assembler
             {
                 RecordLabel(context.ID().Symbol);
 
-                m_fileSize += SizeOfType(context.type());
+                m_fileSize += 1;
             }
             else if (m_currentPass == AssemblerSemanticAnalysisPass.CodeGen)
             {
-                EmitLiteral(context.literal(), SizeOfType(context.type()));
+                EmitLiteral(context.literal());
             }
         }
 
@@ -115,37 +115,18 @@ namespace Atlas.Assembler
             {
                 RecordLabel(context.ID().Symbol);
 
-                m_fileSize += GetArrayInitilizationElementCount(context.arrayInitilizer()) * SizeOfType(context.type());
+                m_fileSize += GetArrayInitilizationElementCount(context.arrayInitilizer());
             }
             else if (m_currentPass == AssemblerSemanticAnalysisPass.CodeGen)
             {
-                EmitArray(context.arrayInitilizer(), SizeOfType(context.type()));
-            }
-        }
-
-        public override void ExitStringDecl(AtlasParser.StringDeclContext context)
-        {
-            //TODO change parser so we dont have to do this
-            string s = context.STRING().GetText().Trim('"');
-            
-            if (m_currentPass == AssemblerSemanticAnalysisPass.RecordLabels)
-            {
-                // space for string is number of characters plus null character
-                RecordLabel(context.ID().Symbol);
-                m_fileSize += (uint)s.Length + 1;
-            }
-            else if (m_currentPass == AssemblerSemanticAnalysisPass.CodeGen)
-            {
-                EmitBytes(s);
-                //null terminate strings
-                EmitByte('\0');
+                EmitArray(context.arrayInitilizer());
             }
         }
 
         public override void ExitInstruction(AtlasParser.InstructionContext context)
         {
             OpCode opCode = OpcodeFromInstruction(context);
-            UInt32 argSize = (UInt32)AtlasCPU.ArgSizeFromOpCode(opCode);
+            int argSize = AtlasCPU.ArgSizeFromOpCode(opCode);
             bool needsArg = argSize != 0;
 
             if (m_currentPass == AssemblerSemanticAnalysisPass.RecordLabels)
@@ -168,7 +149,7 @@ namespace Atlas.Assembler
                 
                 //if it does, emit that value
                 
-                UInt32 argVal = 0;
+                int argVal = 0;
 
                 //argument is a label
                 if (context.ID() != null)
@@ -187,7 +168,7 @@ namespace Atlas.Assembler
                     argVal = GetLiteralValue(context.literal());
                 }
 
-                EmitBytes(argVal, argSize);
+                EmitWord(argVal);
             }
         }
         
@@ -204,100 +185,55 @@ namespace Atlas.Assembler
             }
         }
 
-        private UInt32 m_fileSize = 0;
-        private readonly Dictionary<string, UInt32> m_labels = new Dictionary<string, UInt32>();
+        private int m_fileSize = 0;
+        private readonly Dictionary<string, int> m_labels = new Dictionary<string, int>();
 
         //codegen Pass
-        private void EmitArray(AtlasParser.ArrayInitilizerContext context, UInt32 bytes)
+        private void EmitArray(AtlasParser.ArrayInitilizerContext context)
         {
             if (context.OSQUAREBRACE() != null)
             {
                 //emit zeros eqal to the number of elements in the array
-                UInt32 size = GetArrayInitilizationElementCount(context);
+                int size = GetArrayInitilizationElementCount(context);
                 for (int i = 0; i < size; i++)
                 {
-                    EmitBytes(0, bytes);
+                    EmitWord(0);
                 }
             }
             else
             {
                 foreach (var literal in context.literal())
                 {
-                    EmitLiteral(literal, bytes);
+                    EmitLiteral(literal);
                 }
             }
         }
 
-        private void EmitLiteral(AtlasParser.LiteralContext literal, UInt32 bytes)
+        private void EmitLiteral(AtlasParser.LiteralContext literal)
         {
-            EmitBytes(GetLiteralValue(literal), bytes);
+            EmitWord(GetLiteralValue(literal));
         }
 
         private void EmitOpCode(OpCode code)
         {
-            m_byteBuffer.Add((byte)code);
+            m_wordBuffer.Add((int)code);
         }
         
-        private void EmitBytes(UInt32 value, UInt32 bytes)
+        private void EmitWord(int value)
         {
-            for (int i = 0; i < bytes; i++)
-            {
-                m_byteBuffer.Add(BitConverter.GetBytes(value)[i]);
-            }
+            m_wordBuffer.Add(value);
         }
 
-        private void EmitBytes(string value)
-        {
-            foreach (char c in value)
-            {
-                EmitByte(c);
-            }
-        }
-
-        private void EmitByte(char c)
-        {
-            m_byteBuffer.Add((byte)c);
-        }
-
-        private readonly List<byte> m_byteBuffer = new List<byte>();
+        private readonly List<int> m_wordBuffer = new List<int>();
 
         //utility functions for working with literals
-        private UInt32 GetLiteralValue(AtlasParser.LiteralContext literal)
+        private int GetLiteralValue(AtlasParser.LiteralContext literal)
         {
-            UInt32 val = 0;
-            if (literal.INT() != null)
-            {
-                var bytes = BigInteger.Parse(literal.INT().GetText()).ToByteArray();
-                val = (UInt32)AtlasCPU.IntFromBytes(bytes.ElementAtOrDefault(3), bytes.ElementAtOrDefault(2), bytes.ElementAtOrDefault(1), bytes.ElementAtOrDefault(0));
-            }
-            else if (literal.HEX() != null)
-            {
-                var bytes = BigInteger.Parse(literal.HEX().GetText().TrimStart('0').TrimStart('x'), System.Globalization.NumberStyles.AllowHexSpecifier).ToByteArray();
-                val = (UInt32)AtlasCPU.IntFromBytes(bytes.ElementAtOrDefault(3), bytes.ElementAtOrDefault(2), bytes.ElementAtOrDefault(1), bytes.ElementAtOrDefault(0));
-            }
-            else if (literal.CHAR() != null)
-            {
-                val = (UInt32)Convert.ToByte(Convert.ToChar(literal.CHAR().GetText().Trim('\'')));
-            }
-            else if (literal.boolean() != null)
-            {
-                bool litVal = false;
-                if (literal.boolean().TRUE() != null)
-                {
-                    litVal = true;
-                }
-                else if (literal.boolean().FALSE() != null)
-                {
-                    litVal = false;
-                }
-
-                val = litVal ? (UInt32)0xFFFFFFFF : (UInt32)0x00000000;
-            }
-            else if (literal.NULL() != null)
-            {
-                val = (UInt32)0x00000000;
-            }
-
+            int val = 0;
+     
+            var bytes = BigInteger.Parse(literal.INT().GetText()).ToByteArray();
+            val = AtlasCPU.IntFromBytes(bytes.ElementAtOrDefault(3), bytes.ElementAtOrDefault(2), bytes.ElementAtOrDefault(1), bytes.ElementAtOrDefault(0));
+            
             return val;
         }
 
@@ -321,48 +257,17 @@ namespace Atlas.Assembler
             return OpcodeFromString(s);
         }
 
-        //utility functions for working with types
-        private UInt32 SizeOfType(AtlasParser.TypeContext type)
-        {
-            if (type.BYTE() != null)
-            {
-                return 1;
-            }
-            else if (type.HALF() != null)
-            {
-                return 2;
-            }
-            else if (type.WORD() != null)
-            {
-                return 4;
-            }
-            else
-            {
-                SematicError(type, "Unrecognized Type " + type.GetText());
-                return 0;
-            }
-        }
-
         //utility functions for working with array initilizations
-        private UInt32 GetArrayInitilizationElementCount(AtlasParser.ArrayInitilizerContext context)
+        private int GetArrayInitilizationElementCount(AtlasParser.ArrayInitilizerContext context)
         {
             if (context.OSQUAREBRACE() != null)
             {
-                if (context.INT() != null)
-                {
-                    var bytes = BigInteger.Parse(context.INT().GetText()).ToByteArray();
-                    return (UInt32)AtlasCPU.IntFromBytes(bytes.ElementAtOrDefault(3), bytes.ElementAtOrDefault(2), bytes.ElementAtOrDefault(1), bytes.ElementAtOrDefault(0));
-                }
-                else
-                {
-                   //TODO i think there are some bugs related to hex literals
-                    var bytes = BigInteger.Parse(context.HEX().GetText().TrimStart('0').TrimStart('x'),System.Globalization.NumberStyles.AllowHexSpecifier).ToByteArray();
-                    return (UInt32)AtlasCPU.IntFromBytes(bytes.ElementAtOrDefault(3), bytes.ElementAtOrDefault(2), bytes.ElementAtOrDefault(1), bytes.ElementAtOrDefault(0));
-                }
+                var bytes = BigInteger.Parse(context.INT().GetText()).ToByteArray();
+                return AtlasCPU.IntFromBytes(bytes.ElementAtOrDefault(3), bytes.ElementAtOrDefault(2), bytes.ElementAtOrDefault(1), bytes.ElementAtOrDefault(0));
             }
             else
             {
-                return (UInt32)context.literal().Count;
+                return context.literal().Count;
             }
         }
 

@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.IO;
 using Atlas.Architecture;
 using Atlas.Assembler;
-using Atlas.AtlasCC;
 using Antlr4.Runtime;
 using System.Threading;
 
@@ -16,21 +15,7 @@ namespace Atlas.CLI
     {
         static void Main(string[] args)
         {
-            if (args[0] == "-c")
-            {
-                AtlasCCompilerFrontEnd compiler = new AtlasCCompilerFrontEnd();
-
-                string source = File.ReadAllText(args[1]);
-
-                string compiled = compiler.Compile(new AntlrInputStream(source));
-
-                if (compiled != null)
-                {
-                    File.WriteAllText(args[2], compiled);
-                }
-                Environment.Exit(0);
-            }
-            else if (args[0] == "-a")
+            if (args[0] == "-a")
             {
                 AtlasAssembler assembler = new AtlasAssembler();
 
@@ -55,6 +40,22 @@ namespace Atlas.CLI
                 Console.Clear();
                 while (true)
                 {
+                    Console.Clear();
+
+                    Console.WriteLine("pc : " + cpu.ProgramCounter.ToString("X8"));
+                    Console.WriteLine("bp : " + cpu.BasePointer.ToString("X8"));
+                    Console.WriteLine("sp : " + cpu.StackPointer.ToString("X8"));
+                    Console.WriteLine("inst : " + cpu.GetCurrentInstruction().ToString());
+                    Console.WriteLine("inst code : " + cpu.MemValue(MemSize.WORD,cpu.ProgramCounter).ToString("X8"));
+
+                    Console.WriteLine("stack frame:");
+                    foreach(var item in cpu.GetStackFrame())
+                    {
+                        Console.WriteLine(item.ToString("X8"));
+                    }
+
+                    //Console.ReadLine();
+
                     cpu.ClockPulse();
                 }
             } 

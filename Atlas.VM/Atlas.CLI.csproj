@@ -69,10 +69,6 @@
       <Project>{f62faa05-9789-4745-b6c0-da2512f6e4ff}</Project>
       <Name>Atlas.Assembler</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Atlas.AtlasCC\Atlas.AtlasCC.csproj">
-      <Project>{4d1ce776-0610-4704-8f93-a4bd0994649f}</Project>
-      <Name>Atlas.AtlasCC</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

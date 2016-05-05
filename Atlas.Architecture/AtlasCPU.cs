@@ -21,7 +21,7 @@ namespace Atlas.Architecture
     }
 
     //list of valid instructions: 36 OpCodes
-    public enum OpCode : byte
+    public enum OpCode : int
     {
         //four types of opcodes. control flow, ALU ops, Data transfer, stack manipulation
         
@@ -114,6 +114,12 @@ namespace Atlas.Architecture
 
         public static readonly int StackSize = MemSizeToInt(MemSize.WORD) * 64 * 1024; // 64K
 
+        public int[] GetStackFrame()
+        {
+            var ret = m_mem.ToList().GetRange(BasePointer, StackPointer - BasePointer).ToArray();
+            return ret;
+        }
+
         //utility functions for working with opcodes
         public static int ArgSizeFromOpCode(OpCode code)
         {
@@ -146,13 +152,23 @@ namespace Atlas.Architecture
             return (byte)((value & mask) >> (Byte * 8));
         }
 
+        public static byte[] BytesFromInt(int value)
+        {
+            return new byte[] { ByteFromInt(value, 0), ByteFromInt(value, 1), ByteFromInt(value, 2), ByteFromInt(value, 3) };
+        }
+
         protected int[] m_mem;
 
         public void LoadProgram(byte[] program)
         {
             //for now, mem just grows to accomadate program and stack
-            m_mem = new byte[program.Length + StackSize];
-            program.CopyTo(m_mem, 0);
+            m_mem = new int[program.Length / 4 + StackSize];
+
+
+            for (int i = 0; i < program.Length; i += 4)
+            {
+                m_mem[i / 4] = IntFromBytes(program[i + 3], program[i + 2], program[i + 1], program[i]);
+            }
 
             ProgramCounter = 0;
             StackPointer = program.Length;
@@ -315,6 +331,7 @@ namespace Atlas.Architecture
                 case OpCode.OR:
                 case OpCode.XOR:
                 case OpCode.SW:
+                case OpCode.LW:
                 case OpCode.PUSHBP:
                 case OpCode.COPY:
                 case OpCode.POPW:
@@ -510,14 +527,15 @@ namespace Atlas.Architecture
             ProgramCounter = newPC;
         }
 
-        protected int MemValue(MemSize memSize, int address)
+        public int MemValue(MemSize memSize, int address)
         {
             return m_mem[address];
         }
 
         private void WriteMem(int value, int address, MemSize memSize)
         {
-            m_mem[address] = value;
+            if(memSize != MemSize.NONE)
+                m_mem[address] = value;
         }
 
         /*
@@ -584,11 +602,11 @@ namespace Atlas.Architecture
         }
         
         //Address of the current instruction
-        protected int ProgramCounter;
+        public int ProgramCounter;
 
         // points to the first byte ABOVE the current call frame
-        protected int StackPointer;
+        public int StackPointer;
         // points to first byte AT THE BASE of the current call frame
-        protected int BasePointer;
+        public int BasePointer;
     }
 }

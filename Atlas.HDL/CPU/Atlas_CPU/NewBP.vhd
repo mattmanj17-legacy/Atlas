@@ -30,12 +30,22 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 entity NewBP is
+	port( currBP : in STD_LOGIC_VECTOR(31 downto 0);
+			oldBP : in STD_LOGIC_VECTOR(31 downto 0);
+			cachedBP : in STD_LOGIC_VECTOR(31 downto 0);
+			newBPSource : in STD_LOGIC_VECTOR(1 downto 0);
+			newBPOut : out STD_LOGIC_VECTOR(31 downto 0) );
 end NewBP;
 
 architecture Behavioral of NewBP is
 
 begin
 
+	newBPOut <=
+		currBP when newBPSource = "00" else
+		oldBP when newBPSource = "01" else
+		cachedBP when newBPSource = "10" else
+		currBP;
 
 end Behavioral;
 

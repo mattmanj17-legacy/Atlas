@@ -1,1 +1,1 @@
--intstyle "ise" -incremental -o "C:/Users/Matthew/Desktop/Atlas/Atlas.HDL/CPU/Atlas_CPU/ALUTestBench_isim_beh.exe" -prj "C:/Users/Matthew/Desktop/Atlas/Atlas.HDL/CPU/Atlas_CPU/ALUTestBench_beh.prj" "work.ALUTestBench" 
+-intstyle "ise" -incremental -o "C:/Users/pprice16/Documents/Atlas/Atlas.HDL/CPU/Atlas_CPU/NewSP_TestBench_isim_beh.exe" -prj "C:/Users/pprice16/Documents/Atlas/Atlas.HDL/CPU/Atlas_CPU/NewSP_TestBench_beh.prj" "work.NewSP_TestBench" 

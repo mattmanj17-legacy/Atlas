@@ -82,8 +82,6 @@ BEGIN
    -- Stimulus process
    stim_proc: process
    begin		
-      -- hold reset state for 100 ns.
-
       -- insert stimulus here 
 		pc <= STD_LOGIC_VECTOR(to_unsigned(16#00000000#, 32));
 		

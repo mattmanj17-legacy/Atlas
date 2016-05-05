@@ -50,8 +50,8 @@ namespace Atlas.Architecture
         //control flow/misc
         NOP         = 0x00, //00 00 00 0 0
 
-        IB          = 0x01, //00 00 00 0 1 //in byte
-        OB          = 0x02, //00 00 00 1 0 //out byte
+        //IB          = 0x01, //00 00 00 0 1 //in byte
+        //OB          = 0x02, //00 00 00 1 0 //out byte
 
         BEGINARGS   = 0x10, //00 01 00 0 0 (call to start passing args to a function, before CALL)
         CALL        = 0x11, //00 01 00 0 1
@@ -79,40 +79,40 @@ namespace Atlas.Architecture
         NOT         = 0x7C, //01 11 11 1 0
 
         //data transfer 10 L S NN 00
-        SB          = 0x84, //10 0 0 01 00
-        SH          = 0x88, //10 0 0 10 00
+        //SB          = 0x84, //10 0 0 01 00
+        //SH          = 0x88, //10 0 0 10 00
         SW          = 0x8C, //10 0 0 11 00
-        LUB         = 0xA4, //10 1 0 01 00
-        LUH         = 0xA8, //10 1 0 10 00
-        LB          = 0xB4, //10 1 1 01 00
-        LH          = 0xB8, //10 1 1 10 00
+        //LUB         = 0xA4, //10 1 0 01 00
+        //LUH         = 0xA8, //10 1 0 10 00
+        //LB          = 0xB4, //10 1 1 01 00
+        //LH          = 0xB8, //10 1 1 10 00
         LW          = 0xBC, //10 1 1 11 00
         
         //stack manipulation 11 SS NN P 0
-        POPB        = 0xC4, //11 00 01 0 0
-        POPH        = 0xC8, //11 00 10 0 0
+        //POPB        = 0xC4, //11 00 01 0 0
+        //POPH        = 0xC8, //11 00 10 0 0
         POPW        = 0xCC, //11 00 11 0 0
         PUSHBP      = 0xCE, //11 00 11 1 0
         COPY        = 0xDE, //11 01 11 1 0
-        PUSHB       = 0xF6, //11 11 01 1 0
-        PUSHH       = 0xFA, //11 11 10 1 0
+        //PUSHB       = 0xF6, //11 11 01 1 0
+        //PUSHH       = 0xFA, //11 11 10 1 0
         PUSHW       = 0xFE  //11 11 11 1 0
     }
 
     public enum MemSize
     {
         NONE = 0,
-        BYTE = 1,
-        HALF = 2,
-        WORD = 4
+        //BYTE = 1,
+        //HALF = 2,
+        WORD = 1
     }
 
     public class AtlasCPU
     {
         public const MemSize OperandSize = MemSize.WORD;
-        public const MemSize InstructionSize = MemSize.BYTE;
+        public const MemSize InstructionSize = MemSize.WORD;
 
-        public static readonly int StackSize = MemSizeToInt(MemSize.BYTE) * 64 * 1024; // 64K
+        public static readonly int StackSize = MemSizeToInt(MemSize.WORD) * 64 * 1024; // 64K
 
         //utility functions for working with opcodes
         public static int ArgSizeFromOpCode(OpCode code)
@@ -120,11 +120,11 @@ namespace Atlas.Architecture
             switch (code)
             {
                 case OpCode.PUSHW:
-                    return 4;
-                case OpCode.PUSHH:
-                    return 2;
-                case OpCode.PUSHB:
                     return 1;
+                //case OpCode.PUSHH:
+                   // return 2;
+                //case OpCode.PUSHB:
+                    //return 1;
                 default:
                     return 0;
             }
@@ -146,7 +146,7 @@ namespace Atlas.Architecture
             return (byte)((value & mask) >> (Byte * 8));
         }
 
-        protected byte[] m_mem;
+        protected int[] m_mem;
 
         public void LoadProgram(byte[] program)
         {
@@ -161,13 +161,7 @@ namespace Atlas.Architecture
 
         public OpCode GetCurrentInstruction()
         {
-            return (OpCode)MemValue(MemSize.BYTE, ProgramCounter);
-        }
-
-        private byte[] GetStackFrame()
-        {
-            var ret = m_mem.ToList().GetRange(BasePointer, StackPointer - BasePointer).ToArray();
-            return ret;
+            return (OpCode)MemValue(MemSize.WORD, ProgramCounter);
         }
 
         int cahcedbp = -1;
@@ -183,7 +177,7 @@ namespace Atlas.Architecture
             /*fetch*/
             //the current instruction
             //TODO check FOR UNRECOGNIZED INSTRUCTONS
-            OpCode inst = (OpCode)MemValue(MemSize.BYTE, ProgramCounter);
+            OpCode inst = (OpCode)MemValue(MemSize.WORD, ProgramCounter);
 
             //the literal value used for push instruction
             int inlineLiteral = MemValue((MemSize)ArgSizeFromOpCode(inst), ProgramCounter + MemSizeToInt(InstructionSize));
@@ -192,16 +186,6 @@ namespace Atlas.Architecture
             //BUG this can crash if ... there is nothing in the stack??? huh
             int stackArgB = MemValue(MemSize.WORD, StackPointer - MemSizeToInt(OperandSize));
             int stackArgA = MemValue(MemSize.WORD, StackPointer - 2 * MemSizeToInt(OperandSize));
-
-            int inByte = 0; 
-            if(inst == OpCode.IB)
-            {
-                inByte = Console.Read();
-            }
-            else
-            {
-                Console.Write(((char)stackArgB));
-            }
 
             // the return address, stored one word below the cached base pointer (see implimentation of BEGINARGS and CALL)
             int returnAddress = MemValue(MemSize.WORD, BasePointer - MemSizeToInt(MemSize.WORD));
@@ -214,35 +198,20 @@ namespace Atlas.Architecture
             int newSP = StackPointer;
             switch (inst)
             {
-                //+8
+                //+2 word
                 case OpCode.BEGINARGS:
                     //pop none, push two word (old base pointer and room for return address)
                     newSP = StackPointer + 2 * MemSizeToInt(MemSize.WORD);
                     break;
-                //+4
-                case OpCode.IB:
+                //+1 word
                 case OpCode.PUSHW:
                 case OpCode.PUSHBP:
                 case OpCode.COPY:
                     //pop none off stack, push word
                     newSP = StackPointer + MemSizeToInt(MemSize.WORD);
                     break;
-                //+2
-                case OpCode.PUSHH:
-                    //pop none off stack, push half
-                    newSP = StackPointer + MemSizeToInt(MemSize.HALF);
-                    break;
-                //+1
-                case OpCode.PUSHB:
-                    //pop none off stack, push half
-                    newSP = StackPointer + MemSizeToInt(MemSize.BYTE);
-                    break;
-                //+0
+                //+0 word
                 //pop one word off stack, push word
-                case OpCode.LB:
-                case OpCode.LUB:
-                case OpCode.LH:
-                case OpCode.LUH:
                 case OpCode.LW:
                 case OpCode.NOT:
                 case OpCode.NEG:
@@ -250,17 +219,7 @@ namespace Atlas.Architecture
                 case OpCode.NOP:
                     newSP = StackPointer;
                     break;
-                //-1
-                case OpCode.POPB:
-                    //pop byte off stack, push none
-                    newSP = StackPointer + MemSizeToInt(MemSize.BYTE);
-                    break;
-                //-2
-                case OpCode.POPH:
-                    //pop half off stack, push none
-                    newSP = StackPointer + MemSizeToInt(MemSize.HALF);
-                    break;
-                //-4
+                //-1 word
                 //pop two word off stack, push word
                 case OpCode.ADD:
                 case OpCode.SUB:
@@ -273,26 +232,23 @@ namespace Atlas.Architecture
                 case OpCode.OR:
                 case OpCode.XOR:
                 //pop word off stack, push none
-                case OpCode.OB:
                 case OpCode.POPW:
                 case OpCode.JMP:
                 case OpCode.CALL:
                     newSP = StackPointer - MemSizeToInt(MemSize.WORD);
                     break;
-                //-8
-                case OpCode.SB:
-                case OpCode.SH:
+                //-2 word
                 case OpCode.SW:
                 case OpCode.JIF:
                     // pop two word, push none
                     newSP = StackPointer - 2 * MemSizeToInt(MemSize.WORD);
                     break;
-                //BP-8
+                //BP-2 word
                 case OpCode.RET:
                     // set stack pointer to base pointer, pop two words
                     newSP = BasePointer - 2 * MemSizeToInt(MemSize.WORD);
                     break;
-                //BP-4
+                //BP-1 word
                 case OpCode.RETV:
                     // set stack pointer to base pointer, pop two words, push word
                     newSP = BasePointer - MemSizeToInt(MemSize.WORD);
@@ -316,27 +272,14 @@ namespace Atlas.Architecture
                 case OpCode.AND:
                 case OpCode.OR:
                 case OpCode.XOR:
-                case OpCode.LB:
-                case OpCode.LUB:
-                case OpCode.LH:
-                case OpCode.LUH:
-                case OpCode.LW:
-                case OpCode.SB:
-                case OpCode.SH:
                 case OpCode.SW:
                 case OpCode.JMP:
                 case OpCode.JIF:
                 case OpCode.PUSHBP:
                 case OpCode.COPY:
                 case OpCode.PUSHW:
-                case OpCode.PUSHH:
-                case OpCode.PUSHB:
                 case OpCode.POPW:
-                case OpCode.POPH:
-                case OpCode.POPB:
                 case OpCode.NOP:
-                case OpCode.IB:
-                case OpCode.OB:
                     newBp = BasePointer;
                     break;
                 case OpCode.BEGINARGS:
@@ -371,35 +314,16 @@ namespace Atlas.Architecture
                 case OpCode.AND:
                 case OpCode.OR:
                 case OpCode.XOR:
-                case OpCode.LB:
-                case OpCode.LUB:
-                case OpCode.LH:
-                case OpCode.LUH:
-                case OpCode.LW:
-                case OpCode.SB:
-                case OpCode.SH:
                 case OpCode.SW:
                 case OpCode.PUSHBP:
                 case OpCode.COPY:
                 case OpCode.POPW:
-                case OpCode.POPH:
-                case OpCode.POPB:
                 case OpCode.BEGINARGS:
-                case OpCode.IB:
-                case OpCode.OB:
                     newPC = ProgramCounter + MemSizeToInt(InstructionSize);
                     break;
                 case OpCode.PUSHW:
                     //advance past word literal
                     newPC = ProgramCounter + MemSizeToInt(InstructionSize) + MemSizeToInt(MemSize.WORD);
-                    break;
-                case OpCode.PUSHH:
-                    //advance past half literal
-                    newPC = ProgramCounter + MemSizeToInt(InstructionSize) + MemSizeToInt(MemSize.HALF);
-                    break;
-                case OpCode.PUSHB:
-                    //advance past byte literal
-                    newPC = ProgramCounter + MemSizeToInt(InstructionSize) + MemSizeToInt(MemSize.BYTE);
                     break;
                 case OpCode.JMP:
                 case OpCode.CALL:
@@ -407,7 +331,7 @@ namespace Atlas.Architecture
                     break;
                 case OpCode.JIF:
                     if (stackArgA != 0) { newPC = stackArgB; }
-                    else { newPC = ProgramCounter + 1; }
+                    else { newPC = ProgramCounter + MemSizeToInt(InstructionSize); }
                     break;
                 case OpCode.RETV:
                 case OpCode.RET:
@@ -419,18 +343,11 @@ namespace Atlas.Architecture
             AtlasWriteSource writeSource = AtlasWriteSource.DisableWrite;
             switch (inst)
             {
-                case OpCode.POPW:
-                case OpCode.POPH:
-                case OpCode.POPB:
                 case OpCode.JMP:
                 case OpCode.JIF:
                 case OpCode.RET:
                 case OpCode.NOP:
-                case OpCode.OB:
                     writeSource = AtlasWriteSource.DisableWrite;
-                    break;
-                case OpCode.IB:
-                    writeSource = AtlasWriteSource.InByte;
                     break;
                 case OpCode.ADD:
                 case OpCode.SUB:
@@ -446,15 +363,9 @@ namespace Atlas.Architecture
                 case OpCode.XOR:
                     writeSource = AtlasWriteSource.Alu;
                     break;
-                case OpCode.LB:
-                case OpCode.LUB:
-                case OpCode.LH:
-                case OpCode.LUH:
                 case OpCode.LW:
                     writeSource = AtlasWriteSource.LoadedMemory;
                     break;
-                case OpCode.SB:
-                case OpCode.SH:
                 case OpCode.SW:
                 case OpCode.RETV:
                 case OpCode.COPY:
@@ -465,8 +376,6 @@ namespace Atlas.Architecture
                     writeSource = AtlasWriteSource.BasePointer;
                     break;
                 case OpCode.PUSHW:
-                case OpCode.PUSHH:
-                case OpCode.PUSHB:
                     writeSource = AtlasWriteSource.Literal;
                     break;
                 case OpCode.CALL:
@@ -478,28 +387,15 @@ namespace Atlas.Architecture
             MemSize bytesWritten = MemSize.NONE;
             switch (inst)
             {
-                //0
+                //0 word
                 case OpCode.NOP:
                 case OpCode.JMP:
                 case OpCode.JIF:
                 case OpCode.POPW:
-                case OpCode.POPH:
-                case OpCode.POPB:
                 case OpCode.RET:
-                case OpCode.OB:
                     bytesWritten = MemSize.NONE;
                     break;
-                //1
-                case OpCode.SB:
-                case OpCode.PUSHB:
-                    bytesWritten = MemSize.BYTE;
-                    break;
-                //2
-                case OpCode.SH:
-                case OpCode.PUSHH:
-                    bytesWritten = MemSize.HALF;
-                    break;
-                //4
+                //1 word
                 case OpCode.ADD:
                 case OpCode.SUB:
                 case OpCode.NEG:
@@ -512,10 +408,6 @@ namespace Atlas.Architecture
                 case OpCode.AND:
                 case OpCode.OR:
                 case OpCode.XOR:
-                case OpCode.LB:
-                case OpCode.LUB:
-                case OpCode.LH:
-                case OpCode.LUH:
                 case OpCode.LW:
                 case OpCode.SW:
                 case OpCode.PUSHBP:
@@ -524,7 +416,6 @@ namespace Atlas.Architecture
                 case OpCode.BEGINARGS:
                 case OpCode.CALL:
                 case OpCode.RETV:
-                case OpCode.IB:
                     bytesWritten = MemSize.WORD;
                     break;
             }
@@ -538,25 +429,16 @@ namespace Atlas.Architecture
                 case OpCode.JMP:
                 case OpCode.JIF:
                 case OpCode.POPW:
-                case OpCode.POPH:
-                case OpCode.POPB:
                 case OpCode.RET:
-                case OpCode.OB:
                     writeAddress = 0;
                     break;
                 //replace top of stack
-                case OpCode.LB:
-                case OpCode.LUB:
-                case OpCode.LH:
-                case OpCode.LUH:
                 case OpCode.LW:
                 case OpCode.NEG:
                 case OpCode.NOT:
                     writeAddress = StackPointer - MemSizeToInt(MemSize.WORD);
                     break;
                 //write to memory address
-                case OpCode.SB:
-                case OpCode.SH:
                 case OpCode.SW:
                     writeAddress = stackArgA;
                     break;
@@ -564,10 +446,7 @@ namespace Atlas.Architecture
                 case OpCode.PUSHBP:
                 case OpCode.COPY:
                 case OpCode.PUSHW:
-                case OpCode.PUSHH:
-                case OpCode.PUSHB:
                 case OpCode.BEGINARGS:
-                case OpCode.IB:
                     writeAddress = StackPointer;
                     break;
                 //pop two word, push
@@ -622,9 +501,6 @@ namespace Atlas.Architecture
                 case AtlasWriteSource.ArgumentB:
                     writeVal = stackArgB;
                     break;
-                case AtlasWriteSource.InByte:
-                    writeVal = inByte;
-                    break;
             }
 
             WriteMem(writeVal, writeAddress, bytesWritten);
@@ -636,24 +512,15 @@ namespace Atlas.Architecture
 
         protected int MemValue(MemSize memSize, int address)
         {
-            int size = MemSizeToInt(memSize);
-            return IntFromBytes(
-                size >= 4 ? m_mem[address + 3] : (byte)0,
-                size >= 3 ? m_mem[address + 2] : (byte)0,
-                size >= 2 ? m_mem[address + 1] : (byte)0,
-                size >= 1 ? m_mem[address] : (byte)0
-                );
+            return m_mem[address];
         }
 
         private void WriteMem(int value, int address, MemSize memSize)
         {
-            int size = MemSizeToInt(memSize);
-            if (size >= 4) { m_mem[address + 3] = ByteFromInt(value, 3); }
-            if (size >= 3) { m_mem[address + 2] = ByteFromInt(value, 2); }
-            if (size >= 2) { m_mem[address + 1] = ByteFromInt(value, 1); }
-            if (size >= 1) { m_mem[address] = ByteFromInt(value, 0); }
+            m_mem[address] = value;
         }
 
+        /*
         private int SignExtend(int value, MemSize oldMemSize, MemSize newMemSize)
         {
             int oldSize = MemSizeToInt(oldMemSize);
@@ -661,7 +528,7 @@ namespace Atlas.Architecture
 
             sbyte mostSignificantByte = (sbyte)ByteFromInt(value, oldSize - 1);
 
-            byte extend = mostSignificantByte < 0 ? byte.MaxValue/*0xFFFF*/ : (byte)0;
+            byte extend = mostSignificantByte < 0 ? byte.MaxValue 0xFFFF  : (byte)0;
 
             return IntFromBytes(
                 newSize >= 4 ? (oldSize >= 4 ? ByteFromInt(value, 3) : extend) : (byte)0,
@@ -670,19 +537,12 @@ namespace Atlas.Architecture
                 newSize >= 1 ? (oldSize >= 1 ? ByteFromInt(value, 0) : extend) : (byte)0
                 );
         }
+        */
         
         private int LoadMemory(OpCode inst, int stackArgA, int stackArgB)
         {
             switch(inst)
             {
-                case OpCode.LB:
-                    return SignExtend(MemValue(MemSize.BYTE, stackArgB), MemSize.BYTE, MemSize.WORD);
-                case OpCode.LUB:
-                    return MemValue(MemSize.BYTE, stackArgB);
-                case OpCode.LH:
-                    return SignExtend(MemValue(MemSize.HALF, stackArgB), MemSize.HALF, MemSize.WORD);
-                case OpCode.LUH:
-                    return MemValue(MemSize.HALF, stackArgB);
                 case OpCode.LW:
                     return MemValue(MemSize.WORD, stackArgB);
                 default:

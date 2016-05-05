@@ -46,10 +46,9 @@ entity Memory is
 		wData : in STD_LOGIC_VECTOR(31 downto 0);
 		
 		wEN : in STD_LOGIC; -- write enabled
-		wSize : in STD_LOGIC_VECTOR(3 downto 0); -- enable write individual bytes of word
 		
 		lit : out STD_LOGIC_VECTOR(31 downto 0);
-		instruction : out STD_LOGIC_VECTOR(7 downto 0);
+		instruction : out STD_LOGIC_VECTOR(31 downto 0);
 		argA : out STD_LOGIC_VECTOR(31 downto 0);
 		argB : out STD_LOGIC_VECTOR(31 downto 0);
 		memReadVal : out STD_LOGIC_VECTOR(31 downto 0);
@@ -69,12 +68,12 @@ begin
 	end process;
 	
 	lit <= (mem(conv_integer(pcPlusOne)));
-	instruction <= mem(conv_integer(pc))(7 downto 0);
+	instruction <= mem(conv_integer(pc));
 	argA <= (mem(conv_integer(spMinusEight)));
-	argB <= (mem(conv_integer(spMinusEight + 4)));
+	argB <= (mem(conv_integer(spMinusEight + 1)));
 	memReadVal <= (mem(conv_integer(memReadAddr)));
 	retAddr <= (mem(conv_integer(bpMinusEight)));
-	oldBP <= (mem(conv_integer(bpMinusEight + 4)));
+	oldBP <= (mem(conv_integer(bpMinusEight + 1)));
 	
 end Behavioral;
 

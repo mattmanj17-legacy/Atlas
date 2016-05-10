@@ -58,8 +58,8 @@ begin
 		sp;
 		
 	pointerOffset <= 
-		STD_LOGIC_VECTOR(to_signed(-8,32)) when pointerOffsetPositive = '0' else
-		STD_LOGIC_VECTOR(to_signed(8,32));
+		STD_LOGIC_VECTOR(to_signed(-2,32)) when pointerOffsetPositive = '0' else
+		STD_LOGIC_VECTOR(to_signed(2,32));
 		
 	adjustedPointer <= pointer + pointerOffset;
 	

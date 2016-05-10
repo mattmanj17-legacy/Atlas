@@ -38,8 +38,8 @@ entity Memory is
 	
 		pcPlusOne : in STD_LOGIC_VECTOR(31 downto 0);
 		pc : in STD_LOGIC_VECTOR(31 downto 0);
-		spMinusEight : in STD_LOGIC_VECTOR(31 downto 0);
-		bpMinusEight : in STD_LOGIC_VECTOR(31 downto 0);
+		spMinusTwo : in STD_LOGIC_VECTOR(31 downto 0);
+		bpMinusTwo : in STD_LOGIC_VECTOR(31 downto 0);
 		memReadAddr : in STD_LOGIC_VECTOR(31 downto 0);
 		
 		wAddr : in STD_LOGIC_VECTOR(31 downto 0);
@@ -69,11 +69,11 @@ begin
 	
 	lit <= (mem(conv_integer(pcPlusOne)));
 	instruction <= mem(conv_integer(pc));
-	argA <= (mem(conv_integer(spMinusEight)));
-	argB <= (mem(conv_integer(spMinusEight + 1)));
+	argA <= (mem(conv_integer(spMinusTwo)));
+	argB <= (mem(conv_integer(spMinusTwo + 1)));
 	memReadVal <= (mem(conv_integer(memReadAddr)));
-	retAddr <= (mem(conv_integer(bpMinusEight)));
-	oldBP <= (mem(conv_integer(bpMinusEight + 1)));
+	retAddr <= (mem(conv_integer(bpMinusTwo)));
+	oldBP <= (mem(conv_integer(bpMinusTwo + 1)));
 	
 end Behavioral;
 

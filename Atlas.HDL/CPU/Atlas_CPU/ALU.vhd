@@ -50,7 +50,6 @@ architecture Behavioral of ALU is
 	signal MULT : STD_LOGIC_VECTOR((32*2)-1 downto 0);
 	signal EQU : STD_LOGIC_VECTOR(31 downto 0);
 	
-	
 	--ALU10 signals
 	component Shifter
     port (

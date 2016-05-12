@@ -108,7 +108,7 @@ BEGIN
 		wait for 10 ns;
 		assert Y = std_logic_vector(to_unsigned(6, 32)) report "0100 failed Y:" & integer'image(to_integer(unsigned(Y))) & " a:" & integer'image(to_integer(unsigned(a))) & " b:" & integer'image(to_integer(unsigned(b)));
 		wait for 10 ns;
-		--div 01 : Y = A == B
+		--equ 01 : Y = A == B
 		f <= "0101";
 		wait for 10 ns;
 		assert Y = std_logic_vector(to_unsigned(0, 32)) report "0101 failed Y:" & integer'image(to_integer(unsigned(Y))) & " a:" & integer'image(to_integer(unsigned(a))) & " b:" & integer'image(to_integer(unsigned(b)));

@@ -37,8 +37,8 @@ entity SelectWAddr is
 		cbp : in STD_LOGIC_VECTOR(31 downto 0);
 		bp : in STD_LOGIC_VECTOR(31 downto 0);
 		sp : in STD_LOGIC_VECTOR(31 downto 0);
-		selectPointer : in STD_LOGIC_VECTOR(2 downto 0);
-		pointerOffsetPositive : in STD_LOGIC;
+		selectPointer : in STD_LOGIC_VECTOR(1 downto 0);
+		pointerOffset : in STD_LOGIC_VECTOR(1 downto 0);
 		
 		argA : in STD_LOGIC_VECTOR(31 downto 0);
 		argAorPointer : in STD_LOGIC;
@@ -58,8 +58,9 @@ begin
 		sp;
 		
 	pointerOffset <= 
-		STD_LOGIC_VECTOR(to_signed(-2,32)) when pointerOffsetPositive = '0' else
-		STD_LOGIC_VECTOR(to_signed(2,32));
+		STD_LOGIC_VECTOR(to_signed(0,32)) when pointerOffsetPositive = "00" else
+		STD_LOGIC_VECTOR(to_signed(-1,32)) when pointerOffsetPositive = "01" else
+		STD_LOGIC_VECTOR(to_signed(-2,32));
 		
 	adjustedPointer <= pointer + pointerOffset;
 	

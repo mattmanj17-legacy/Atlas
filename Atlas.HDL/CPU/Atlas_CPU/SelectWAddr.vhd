@@ -38,7 +38,7 @@ entity SelectWAddr is
 		bp : in STD_LOGIC_VECTOR(31 downto 0);
 		sp : in STD_LOGIC_VECTOR(31 downto 0);
 		selectPointer : in STD_LOGIC_VECTOR(1 downto 0);
-		pointerOffset : in STD_LOGIC_VECTOR(1 downto 0);
+		pointerOffsetPositive : in STD_LOGIC_VECTOR(1 downto 0);
 		
 		argA : in STD_LOGIC_VECTOR(31 downto 0);
 		argAorPointer : in STD_LOGIC;

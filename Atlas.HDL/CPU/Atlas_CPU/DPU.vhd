@@ -58,7 +58,7 @@ entity DPU is
 		
 		--wAddr control Signals
 		selectPointer : in STD_LOGIC_VECTOR(1 downto 0);
-		pointerOffset : in STD_LOGIC_VECTOR(1 downto 0);
+		pointerOffsetPositive : in STD_LOGIC_VECTOR(1 downto 0);
 		argAorPointer : in STD_LOGIC;
 		
 		--wData control Signals
@@ -152,7 +152,7 @@ architecture Behavioral of DPU is
 		bp : in STD_LOGIC_VECTOR(31 downto 0);
 		sp : in STD_LOGIC_VECTOR(31 downto 0);
 		selectPointer : in STD_LOGIC_VECTOR(1 downto 0);
-		pointerOffset : in STD_LOGIC_VECTOR(1 downto 0);
+		pointerOffsetPositive : in STD_LOGIC_VECTOR(1 downto 0);
 		
 		argA : in STD_LOGIC_VECTOR(31 downto 0);
 		argAorPointer : in STD_LOGIC;
@@ -184,7 +184,6 @@ architecture Behavioral of DPU is
 	signal pc : STD_LOGIC_VECTOR(31 downto 0);
 	signal spMinusTwo : STD_LOGIC_VECTOR(31 downto 0);
 	signal bpMinusTwo : STD_LOGIC_VECTOR(31 downto 0);
-	signal memReadAddr : STD_LOGIC_VECTOR(31 downto 0);
 	signal wAddr : STD_LOGIC_VECTOR(31 downto 0);
 	signal wData : STD_LOGIC_VECTOR(31 downto 0);
 	signal lit : STD_LOGIC_VECTOR(31 downto 0);
@@ -193,7 +192,6 @@ architecture Behavioral of DPU is
 	signal oldBP : STD_LOGIC_VECTOR(31 downto 0);
 	
 	--bp signals
-	signal currBP : STD_LOGIC_VECTOR(31 downto 0);
 	signal cachedBP : STD_LOGIC_VECTOR(31 downto 0);
 	signal newBPOut : STD_LOGIC_VECTOR(31 downto 0);
 	
@@ -201,7 +199,6 @@ architecture Behavioral of DPU is
 	signal newPCOut : STD_LOGIC_VECTOR(31 downto 0);
 	
 	--sp signals
-	signal oldSP : STD_LOGIC_VECTOR(31 downto 0);
 	signal newSPOut : STD_LOGIC_VECTOR(31 downto 0);
 	
 	--reg signals
@@ -220,7 +217,7 @@ begin
 		pc => pc, 
 		spMinusTwo => spMinusTwo,
 		bpMinusTwo => bpMinusTwo,
-		memReadAddr => memReadAddr,
+		memReadAddr => ArgB,
 		wAddr => wAddr,
 		wData => wData,
 		wEn => memWen,
@@ -233,7 +230,7 @@ begin
 		oldBP => oldBP
 	);
 	BPComp 		: newBp port map (
-		currBP => currBP,
+		currBP => bp,
 		oldBP => oldBP,
 		cachedBP => cachedBP,
 		newBPSource => newBPSource,
@@ -249,7 +246,7 @@ begin
 		newPCOut => newPCOut
 	);
 	SPComp 		: NewSp port map (
-		oldSP => oldSP,
+		oldSP => sp,
 		oldBP => oldBP,
 		spOffset => spOffset,
 		useBP => useBP,

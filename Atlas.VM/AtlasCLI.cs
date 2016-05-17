@@ -54,7 +54,7 @@ namespace Atlas.CLI
                         Console.WriteLine(item.ToString("X8"));
                     }
 
-                    //Console.ReadLine();
+                    Console.ReadLine();
 
                     cpu.ClockPulse();
                 }

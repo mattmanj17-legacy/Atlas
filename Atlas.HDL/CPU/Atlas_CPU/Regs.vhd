@@ -59,10 +59,10 @@ entity Regs is
 end Regs;
 
 architecture Behavioral of Regs is
-	signal pcReg : STD_LOGIC_VECTOR(31 downto 0);
-	signal spReg : STD_LOGIC_VECTOR(31 downto 0);
-	signal bpReg : STD_LOGIC_VECTOR(31 downto 0);
-	signal cbpReg : STD_LOGIC_VECTOR(31 downto 0);
+	signal pcReg : STD_LOGIC_VECTOR(31 downto 0) := x"00000000";
+	signal spReg : STD_LOGIC_VECTOR(31 downto 0) := x"00000080";
+	signal bpReg : STD_LOGIC_VECTOR(31 downto 0) := x"00000080";
+	signal cbpReg : STD_LOGIC_VECTOR(31 downto 0):= x"00000080";
 begin
 	--pc reg
 	process(clk) begin

@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.Assembler", "Atlas.As
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.CLI", "Atlas.VM\Atlas.CLI.csproj", "{D2797C5E-F2B5-4AD5-B7DD-6E3E4E95A871}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atlas.BinaryConverter", "Atlas.\Atlas.BinaryConverter.csproj", "{B38C4CF1-398A-403A-9021-086F70938957}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{D2797C5E-F2B5-4AD5-B7DD-6E3E4E95A871}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D2797C5E-F2B5-4AD5-B7DD-6E3E4E95A871}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D2797C5E-F2B5-4AD5-B7DD-6E3E4E95A871}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B38C4CF1-398A-403A-9021-086F70938957}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B38C4CF1-398A-403A-9021-086F70938957}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B38C4CF1-398A-403A-9021-086F70938957}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B38C4CF1-398A-403A-9021-086F70938957}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
